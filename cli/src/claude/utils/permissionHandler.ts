@@ -123,10 +123,10 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     /**
      * Handler response
      */
-    protected handlePermissionResponse(
+    protected async handlePermissionResponse(
         response: PermissionResponse,
         pending: PendingPermissionRequest<PermissionResult>
-    ): PermissionCompletion {
+    ): Promise<PermissionCompletion> {
         const completion: PermissionCompletion = {
             status: response.approved ? 'approved' : 'denied',
             reason: response.reason,

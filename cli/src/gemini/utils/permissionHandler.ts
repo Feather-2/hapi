@@ -3,6 +3,12 @@ import type { AgentBackend, PermissionRequest, PermissionResponse } from '@/agen
 import type { GeminiPermissionMode } from '@hapi/protocol/types';
 import { deriveToolName } from '@/agent/utils';
 import { logger } from '@/ui/logger';
+import {
+    BasePermissionHandler,
+    type AutoApprovalDecision,
+    type PendingPermissionRequest,
+    type PermissionCompletion
+} from '@/modules/common/permission/BasePermissionHandler';
 
 interface PermissionResponseMessage {
     id: string;
@@ -47,57 +53,16 @@ function mapDecisionToOutcome(request: PermissionRequest, decision: PermissionRe
     return optionId ? { outcome: 'selected', optionId } : { outcome: 'cancelled' };
 }
 
-function shouldAutoApprove(mode: GeminiPermissionMode, toolName: string, toolCallId: string): boolean {
-    const alwaysAutoApproveNames = [
-        'change_title',
-        'happy__change_title',
-        'geminireasoning',
-        'codexreasoning',
-        'think',
-        'save_memory'
-    ];
-    const alwaysAutoApproveIds = ['change_title', 'save_memory'];
-
-    const lowerTool = toolName.toLowerCase();
-    if (alwaysAutoApproveNames.some((name) => lowerTool.includes(name))) {
-        return true;
-    }
-
-    const lowerId = toolCallId.toLowerCase();
-    if (alwaysAutoApproveIds.some((name) => lowerId.includes(name))) {
-        return true;
-    }
-
-    if (mode === 'yolo') {
-        return true;
-    }
-    if (mode === 'safe-yolo') {
-        return true;
-    }
-    if (mode === 'read-only') {
-        const writeTools = ['write', 'edit', 'create', 'delete', 'patch', 'fs-edit'];
-        const isWriteTool = writeTools.some((name) => lowerTool.includes(name));
-        return !isWriteTool;
-    }
-
-    return false;
-}
-
-export class GeminiPermissionHandler {
-    private readonly pendingRequests = new Map<string, PermissionRequest>();
+export class GeminiPermissionHandler extends BasePermissionHandler<PermissionResponseMessage, void> {
+    private readonly pendingBackendRequests = new Map<string, PermissionRequest>();
 
     constructor(
-        private readonly session: ApiSessionClient,
+        session: ApiSessionClient,
         private readonly backend: AgentBackend,
         private readonly getPermissionMode: () => GeminiPermissionMode | undefined
     ) {
+        super(session);
         this.backend.onPermissionRequest((request) => this.handlePermissionRequest(request));
-        this.session.rpcHandlerManager.registerHandler<PermissionResponseMessage, void>(
-            'permission',
-            async (response) => {
-                await this.handlePermissionResponse(response);
-            }
-        );
     }
 
     private handlePermissionRequest(request: PermissionRequest): void {
@@ -109,26 +74,17 @@ export class GeminiPermissionHandler {
         const toolInput = deriveToolInput(request);
         const mode = this.getPermissionMode() ?? 'default';
 
-        if (shouldAutoApprove(mode, toolName, request.toolCallId)) {
-            const decision: PermissionResponseMessage['decision'] = mode === 'yolo'
-                ? 'approved_for_session'
-                : 'approved';
-            void this.autoApprove(request, toolName, toolInput, decision);
+        const autoDecision = this.resolveAutoApprovalDecision(mode, toolName, request.toolCallId);
+        if (autoDecision) {
+            void this.autoApprove(request, toolName, toolInput, autoDecision);
             return;
         }
 
-        this.pendingRequests.set(request.id, request);
-        this.session.updateAgentState((currentState) => ({
-            ...currentState,
-            requests: {
-                ...currentState.requests,
-                [request.id]: {
-                    tool: toolName,
-                    arguments: toolInput,
-                    createdAt: Date.now()
-                }
-            }
-        }));
+        this.pendingBackendRequests.set(request.id, request);
+        this.addPendingRequest(request.id, toolName, toolInput, {
+            resolve: () => {},
+            reject: () => {}
+        });
 
         logger.debug(`[Gemini] Permission request queued for ${toolName} (${request.id})`);
     }
@@ -137,12 +93,12 @@ export class GeminiPermissionHandler {
         request: PermissionRequest,
         toolName: string,
         toolInput: unknown,
-        decision: PermissionResponseMessage['decision']
+        decision: AutoApprovalDecision
     ): Promise<void> {
         const outcome = mapDecisionToOutcome(request, decision);
         await this.backend.respondToPermission(request.sessionId, request, outcome);
 
-        this.session.updateAgentState((currentState) => ({
+        this.client.updateAgentState((currentState) => ({
             ...currentState,
             completedRequests: {
                 ...currentState.completedRequests,
@@ -160,83 +116,55 @@ export class GeminiPermissionHandler {
         logger.debug(`[Gemini] Auto-approved ${toolName} (${request.id}) mode=${decision}`);
     }
 
-    private async handlePermissionResponse(response: PermissionResponseMessage): Promise<void> {
-        const pending = this.pendingRequests.get(response.id);
-        if (!pending) {
-            logger.debug('[Gemini] Permission response received for unknown request', response.id);
-            return;
+    protected async handlePermissionResponse(
+        response: PermissionResponseMessage,
+        pending: PendingPermissionRequest<void>
+    ): Promise<PermissionCompletion> {
+        const pendingRequest = this.pendingBackendRequests.get(response.id);
+        if (pendingRequest) {
+            this.pendingBackendRequests.delete(response.id);
+        } else {
+            logger.debug('[Gemini] Permission response missing backend request', response.id);
         }
-
-        this.pendingRequests.delete(response.id);
 
         const decision = response.decision ?? (response.approved ? 'approved' : 'denied');
-        const toolName = deriveToolName({
-            title: pending.title,
-            kind: pending.kind,
-            rawInput: pending.rawInput
-        });
-        const toolInput = deriveToolInput(pending);
 
-        if (decision === 'abort') {
-            await this.backend.cancelPrompt(pending.sessionId);
+        if (decision === 'abort' && pendingRequest) {
+            await this.backend.cancelPrompt(pendingRequest.sessionId);
         }
 
-        const outcome = mapDecisionToOutcome(pending, decision);
-        await this.backend.respondToPermission(pending.sessionId, pending, outcome);
+        if (pendingRequest) {
+            const outcome = mapDecisionToOutcome(pendingRequest, decision);
+            await this.backend.respondToPermission(pendingRequest.sessionId, pendingRequest, outcome);
+        }
 
-        this.session.updateAgentState((currentState) => {
-            const requestEntry = currentState.requests?.[response.id];
-            const { [response.id]: _, ...remaining } = currentState.requests ?? {};
-            const status = response.approved ? 'approved' : 'denied';
+        pending.resolve();
 
-            return {
-                ...currentState,
-                requests: remaining,
-                completedRequests: {
-                    ...currentState.completedRequests,
-                    [response.id]: {
-                        tool: toolName,
-                        arguments: toolInput,
-                        createdAt: requestEntry?.createdAt ?? Date.now(),
-                        completedAt: Date.now(),
-                        status,
-                        decision,
-                        reason: response.reason
-                    }
-                }
-            };
-        });
+        logger.debug(`[Gemini] Permission ${response.approved ? 'approved' : 'denied'} for ${pending.toolName}`);
 
-        logger.debug(`[Gemini] Permission ${response.approved ? 'approved' : 'denied'} for ${toolName}`);
+        return {
+            status: response.approved ? 'approved' : 'denied',
+            decision,
+            reason: response.reason
+        };
+    }
+
+    protected handleMissingPendingResponse(response: PermissionResponseMessage): void {
+        logger.debug('[Gemini] Permission response received for unknown request', response.id);
     }
 
     async cancelAll(reason: string): Promise<void> {
-        const pending = Array.from(this.pendingRequests.values());
-        this.pendingRequests.clear();
+        const pending = Array.from(this.pendingBackendRequests.values());
+        this.pendingBackendRequests.clear();
 
         for (const request of pending) {
             await this.backend.respondToPermission(request.sessionId, request, { outcome: 'cancelled' });
         }
 
-        this.session.updateAgentState((currentState) => {
-            const pendingRequests = currentState.requests ?? {};
-            const completedRequests = { ...currentState.completedRequests };
-
-            for (const [id, request] of Object.entries(pendingRequests)) {
-                completedRequests[id] = {
-                    ...request,
-                    completedAt: Date.now(),
-                    status: 'canceled',
-                    reason,
-                    decision: 'abort'
-                };
-            }
-
-            return {
-                ...currentState,
-                requests: {},
-                completedRequests
-            };
+        this.cancelPendingRequests({
+            completedReason: reason,
+            rejectMessage: reason,
+            decision: 'abort'
         });
     }
 }
