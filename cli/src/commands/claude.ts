@@ -135,6 +135,11 @@ ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
 
         try {
             const { runClaude } = await import('@/claude/runClaude')
+            // In dev mode, restore session cwd after all dynamic imports resolved
+            if (process.env.HAPI_SESSION_CWD) {
+                process.chdir(process.env.HAPI_SESSION_CWD)
+                delete process.env.HAPI_SESSION_CWD
+            }
             await runClaude(options)
         } catch (error) {
             const { message, messageLower, axiosCode, httpStatus, responseErrorText, serverProtocolVersion } = extractErrorInfo(error)

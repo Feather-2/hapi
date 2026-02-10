@@ -105,5 +105,20 @@ export function spawnHappyCLI(args: string[], options: SpawnOptions = {}): Child
     }
   }
   
+  // In dev mode, bun needs to run from the CLI project root to resolve
+  // @/ path aliases and #embedded-assets subpath imports. Pass the original
+  // cwd as HAPI_SESSION_CWD so the CLI can chdir to it on startup.
+  if (!isBunCompiled() && options.cwd) {
+    const originalCwd = typeof options.cwd === 'string' ? options.cwd : options.cwd.toString();
+    options = {
+      ...options,
+      cwd: projectPath(),
+      env: {
+        ...(options.env || process.env),
+        HAPI_SESSION_CWD: originalCwd
+      }
+    };
+  }
+
   return spawn(spawnCommand, spawnArgs, options);
 }
