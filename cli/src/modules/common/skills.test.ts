@@ -6,6 +6,7 @@ import { listSkills } from './skills';
 
 describe('skills', () => {
     const originalCodexHome = process.env.CODEX_HOME;
+    const originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
     let codexHome: string;
 
     beforeEach(async () => {
@@ -19,11 +20,16 @@ describe('skills', () => {
         } else {
             process.env.CODEX_HOME = originalCodexHome;
         }
+        if (originalClaudeConfigDir === undefined) {
+            delete process.env.CLAUDE_CONFIG_DIR;
+        } else {
+            process.env.CLAUDE_CONFIG_DIR = originalClaudeConfigDir;
+        }
         await rm(codexHome, { recursive: true, force: true });
     });
 
     it('returns empty list when skills directory is missing', async () => {
-        const skills = await listSkills();
+        const skills = await listSkills('codex');
         expect(skills).toEqual([]);
     });
 
@@ -73,7 +79,7 @@ describe('skills', () => {
             '# Skill Creator',
         ].join('\n'));
 
-        const skills = await listSkills();
+        const skills = await listSkills('codex');
         expect(skills.map((s) => s.name)).toEqual(['amis', 'helloagents', 'skill-creator']);
     });
 
@@ -83,8 +89,30 @@ describe('skills', () => {
         await mkdir(fallbackDir, { recursive: true });
         await writeFile(join(fallbackDir, 'SKILL.md'), '# No Frontmatter\n');
 
-        const skills = await listSkills();
+        const skills = await listSkills('codex');
         expect(skills).toEqual([{ name: 'no-frontmatter', description: undefined }]);
+    });
+
+    it('reads Claude skills from CLAUDE_CONFIG_DIR', async () => {
+        const claudeHome = await mkdtemp(join(tmpdir(), 'hapi-claude-skills-'));
+        process.env.CLAUDE_CONFIG_DIR = claudeHome;
+        const skillsRoot = join(claudeHome, 'skills');
+        const testDir = join(skillsRoot, 'checkpoint');
+        await mkdir(testDir, { recursive: true });
+        await writeFile(join(testDir, 'SKILL.md'), [
+            '---',
+            'name: checkpoint',
+            'description: Session continuity',
+            '---',
+            '',
+            '# Checkpoint',
+        ].join('\n'));
+
+        const skills = await listSkills('claude');
+        expect(skills).toEqual([{ name: 'checkpoint', description: 'Session continuity' }]);
+
+        delete process.env.CLAUDE_CONFIG_DIR;
+        await rm(claudeHome, { recursive: true, force: true });
     });
 });
 

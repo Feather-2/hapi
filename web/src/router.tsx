@@ -271,14 +271,26 @@ function SessionPage() {
     } = useSlashCommands(api, sessionId, agentType)
     const {
         getSuggestions: getSkillSuggestions,
-    } = useSkills(api, sessionId)
+    } = useSkills(api, sessionId, agentType)
 
     const getAutocompleteSuggestions = useCallback(async (query: string) => {
+        if (agentType === 'claude') {
+            // For Claude, skills use / prefix - merge with slash commands
+            if (query.startsWith('/')) {
+                const [slashResults, skillResults] = await Promise.all([
+                    getSlashSuggestions(query),
+                    getSkillSuggestions(query),
+                ])
+                return [...slashResults, ...skillResults]
+            }
+            return await getSlashSuggestions(query)
+        }
+        // For Codex and others, skills use $ prefix
         if (query.startsWith('$')) {
             return await getSkillSuggestions(query)
         }
         return await getSlashSuggestions(query)
-    }, [getSkillSuggestions, getSlashSuggestions])
+    }, [agentType, getSkillSuggestions, getSlashSuggestions])
 
     const refreshSelectedSession = useCallback(() => {
         void refetchSession()

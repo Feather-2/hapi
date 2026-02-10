@@ -9,6 +9,7 @@ export interface SkillSummary {
 }
 
 export interface ListSkillsRequest {
+    agent?: string;
 }
 
 export interface ListSkillsResponse {
@@ -17,7 +18,11 @@ export interface ListSkillsResponse {
     error?: string;
 }
 
-function getSkillsRoot(): string {
+function getSkillsRoot(agent: string): string {
+    if (agent === 'claude') {
+        const claudeHome = process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude');
+        return join(claudeHome, 'skills');
+    }
     const codexHome = process.env.CODEX_HOME ?? join(homedir(), '.codex');
     return join(codexHome, 'skills');
 }
@@ -88,8 +93,8 @@ async function listTopLevelSkillDirs(skillsRoot: string): Promise<string[]> {
     }
 }
 
-export async function listSkills(): Promise<SkillSummary[]> {
-    const skillsRoot = getSkillsRoot();
+export async function listSkills(agent: string = 'codex'): Promise<SkillSummary[]> {
+    const skillsRoot = getSkillsRoot(agent);
     const skillDirs = await listTopLevelSkillDirs(skillsRoot);
     if (skillDirs.length === 0) {
         return [];

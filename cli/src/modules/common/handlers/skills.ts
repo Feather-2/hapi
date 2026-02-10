@@ -4,11 +4,12 @@ import { listSkills, type ListSkillsRequest, type ListSkillsResponse } from '../
 import { getErrorMessage, rpcError } from '../rpcResponses'
 
 export function registerSkillsHandlers(rpcHandlerManager: RpcHandlerManager): void {
-    rpcHandlerManager.registerHandler<ListSkillsRequest, ListSkillsResponse>('listSkills', async () => {
-        logger.debug('List skills request')
+    rpcHandlerManager.registerHandler<ListSkillsRequest, ListSkillsResponse>('listSkills', async (data) => {
+        const agent = data?.agent ?? 'codex'
+        logger.debug('List skills request for agent:', agent)
 
         try {
-            const skills = await listSkills()
+            const skills = await listSkills(agent)
             return { success: true, skills }
         } catch (error) {
             logger.debug('Failed to list skills:', error)

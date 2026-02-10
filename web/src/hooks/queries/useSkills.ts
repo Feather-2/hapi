@@ -24,7 +24,8 @@ function levenshteinDistance(a: string, b: string): number {
 
 export function useSkills(
     api: ApiClient | null,
-    sessionId: string | null
+    sessionId: string | null,
+    agentType: string = 'codex'
 ): {
     skills: SkillSummary[]
     isLoading: boolean
@@ -57,7 +58,8 @@ export function useSkills(
     const getSuggestions = useCallback(async (queryText: string): Promise<Suggestion[]> => {
         const recent = getRecentSkills()
         const getRecency = (name: string) => recent[name] ?? 0
-        const searchTerm = queryText.startsWith('$')
+        const prefix = agentType === 'claude' ? '/' : '$'
+        const searchTerm = queryText.startsWith(prefix)
             ? queryText.slice(1).toLowerCase()
             : queryText.toLowerCase()
 
@@ -65,9 +67,9 @@ export function useSkills(
             return [...skills]
                 .sort((a, b) => getRecency(b.name) - getRecency(a.name) || a.name.localeCompare(b.name))
                 .map((skill) => ({
-                    key: `$${skill.name}`,
-                    text: `$${skill.name}`,
-                    label: `$${skill.name}`,
+                    key: `${prefix}${skill.name}`,
+                    text: `${prefix}${skill.name}`,
+                    label: `${prefix}${skill.name}`,
                     description: skill.description,
                     source: 'builtin'
                 }))
@@ -90,13 +92,13 @@ export function useSkills(
             .filter(item => item.score < Infinity)
             .sort((a, b) => a.score - b.score || b.recency - a.recency || a.skill.name.localeCompare(b.skill.name))
             .map(({ skill }) => ({
-                key: `$${skill.name}`,
-                text: `$${skill.name}`,
-                label: `$${skill.name}`,
+                key: `${prefix}${skill.name}`,
+                text: `${prefix}${skill.name}`,
+                label: `${prefix}${skill.name}`,
                 description: skill.description,
                 source: 'builtin'
             }))
-    }, [skills])
+    }, [skills, agentType])
 
     return {
         skills,
