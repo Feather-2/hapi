@@ -13,6 +13,12 @@ import { AgentSelector } from './AgentSelector'
 import { DirectorySection } from './DirectorySection'
 import { MachineSelector } from './MachineSelector'
 import { ModelSelector } from './ModelSelector'
+import {
+    loadPreferredAgent,
+    loadPreferredYoloMode,
+    savePreferredAgent,
+    savePreferredYoloMode,
+} from './preferences'
 import { SessionTypeSelector } from './SessionTypeSelector'
 import { YoloToggle } from './YoloToggle'
 
@@ -34,9 +40,9 @@ export function NewSession(props: {
     const [suppressSuggestions, setSuppressSuggestions] = useState(false)
     const [isDirectoryFocused, setIsDirectoryFocused] = useState(false)
     const [pathExistence, setPathExistence] = useState<Record<string, boolean>>({})
-    const [agent, setAgent] = useState<AgentType>('claude')
+    const [agent, setAgent] = useState<AgentType>(loadPreferredAgent)
     const [model, setModel] = useState('auto')
-    const [yoloMode, setYoloMode] = useState(false)
+    const [yoloMode, setYoloMode] = useState(loadPreferredYoloMode)
     const [sessionType, setSessionType] = useState<SessionType>('simple')
     const [worktreeName, setWorktreeName] = useState('')
     const [error, setError] = useState<string | null>(null)
@@ -51,6 +57,14 @@ export function NewSession(props: {
     useEffect(() => {
         setModel('auto')
     }, [agent])
+
+    useEffect(() => {
+        savePreferredAgent(agent)
+    }, [agent])
+
+    useEffect(() => {
+        savePreferredYoloMode(yoloMode)
+    }, [yoloMode])
 
     useEffect(() => {
         if (props.machines.length === 0) return
