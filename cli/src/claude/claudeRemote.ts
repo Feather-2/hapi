@@ -8,8 +8,9 @@ import { PushableAsyncIterable } from "@/utils/PushableAsyncIterable";
 import { getProjectPath } from "./utils/path";
 import { awaitFileExist } from "@/modules/watcher/awaitFileExist";
 import { systemPrompt } from "./utils/systemPrompt";
-import { PermissionResult } from "./sdk/types";
+import { PermissionResult, SDKResultMessage } from "./sdk/types";
 import { getHapiBlobsDir } from "@/constants/uploadPaths";
+import { loadCheckpointConfig, extractAssistantText, assessTaskCompletion } from "./utils/smartContinue";
 
 export async function claudeRemote(opts: {
 
@@ -42,7 +43,7 @@ export async function claudeRemote(opts: {
     if (opts.sessionId && !claudeCheckSession(opts.sessionId, opts.path)) {
         startFrom = null;
     }
-    
+
     // Extract --resume from claudeArgs if present (for first spawn)
     if (!startFrom && opts.claudeArgs) {
         for (let i = 0; i < opts.claudeArgs.length; i++) {
@@ -155,12 +156,30 @@ export async function claudeRemote(opts: {
         options: sdkOptions,
     });
 
+    let autoContinueCount = 0;
+    const MAX_AUTO_CONTINUE = 3;
+    let smartContinueCount = 0;
+    const recentAssistantTexts: string[] = [];
+    const smartContinueConfig = loadCheckpointConfig(opts.path);
+    if (smartContinueConfig?.enabled) {
+        logger.debug('[claudeRemote] Checkpoint mode detected, smart auto-continue enabled');
+    }
+
     updateThinking(true);
     try {
         logger.debug(`[claudeRemote] Starting to iterate over response`);
 
         for await (const message of response) {
             logger.debugLargeJson(`[claudeRemote] Message ${message.type}`, message);
+
+            // Buffer recent assistant text for smart continue assessment
+            const assistantText = extractAssistantText(message);
+            if (assistantText && smartContinueConfig) {
+                recentAssistantTexts.push(assistantText);
+                if (recentAssistantTexts.length > smartContinueConfig.bufferSize) {
+                    recentAssistantTexts.shift();
+                }
+            }
 
             // Handle messages
             opts.onMessage(message);
@@ -186,7 +205,38 @@ export async function claudeRemote(opts: {
             // Handle result messages
             if (message.type === 'result') {
                 updateThinking(false);
-                logger.debug('[claudeRemote] Result received, exiting claudeRemote');
+                const resultMsg = message as SDKResultMessage;
+                logger.debug(`[claudeRemote] Result received: subtype=${resultMsg.subtype} num_turns=${resultMsg.num_turns} is_error=${resultMsg.is_error} cost=$${resultMsg.total_cost_usd?.toFixed(4)} duration=${resultMsg.duration_ms}ms`);
+
+                // Auto-continue: if model stopped with success but very few turns,
+                // it likely stopped prematurely due to prompt conflicts.
+                // Inject a continuation message instead of waiting for user.
+                if (resultMsg.subtype === 'success' && resultMsg.num_turns <= 1 && !isCompactCommand && autoContinueCount < MAX_AUTO_CONTINUE) {
+                    autoContinueCount++;
+                    logger.debug(`[claudeRemote] Suspected premature stop (num_turns <= 1), auto-continuing (${autoContinueCount}/${MAX_AUTO_CONTINUE})`);
+                    messages.push({ type: 'user', message: { role: 'user', content: 'Continue. You stopped before completing the task. Pick up where you left off.' } });
+                    updateThinking(true);
+                    continue;
+                }
+                autoContinueCount = 0; // Reset on normal completion
+
+                // Smart auto-continue: if checkpoint is active and no completion marker found,
+                // use lightweight AI to assess whether the task is truly done
+                if (smartContinueConfig?.enabled && !isCompactCommand && smartContinueCount < smartContinueConfig.maxRetries) {
+                    const hasCompletionMarker = recentAssistantTexts.some(t => t.includes(smartContinueConfig.completionMarker));
+                    if (!hasCompletionMarker && resultMsg.subtype === 'success' && resultMsg.num_turns > 1) {
+                        logger.debug(`[claudeRemote] Checkpoint active, no ${smartContinueConfig.completionMarker} found. Assessing completion...`);
+                        const isDone = await assessTaskCompletion(recentAssistantTexts, smartContinueConfig);
+                        if (!isDone) {
+                            smartContinueCount++;
+                            logger.debug(`[claudeRemote] Smart continue: task not done, injecting continuation (${smartContinueCount}/${smartContinueConfig.maxRetries})`);
+                            messages.push({ type: 'user', message: { role: 'user', content: smartContinueConfig.continueMessage } });
+                            updateThinking(true);
+                            continue;
+                        }
+                        logger.debug('[claudeRemote] Smart continue: task assessed as done, proceeding normally');
+                    }
+                }
 
                 // Send completion messages
                 if (isCompactCommand) {
