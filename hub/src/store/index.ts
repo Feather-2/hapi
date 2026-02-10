@@ -22,7 +22,7 @@ export { PushStore } from './pushStore'
 export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
 
-const SCHEMA_VERSION: number = 3
+const SCHEMA_VERSION: number = 4
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -110,6 +110,12 @@ export class Store {
             return
         }
 
+        if (currentVersion === 3 && SCHEMA_VERSION === 4) {
+            this.migrateFromV3ToV4()
+            this.setUserVersion(SCHEMA_VERSION)
+            return
+        }
+
         if (currentVersion !== SCHEMA_VERSION) {
             throw this.buildSchemaMismatchError(currentVersion)
         }
@@ -132,6 +138,8 @@ export class Store {
                 agent_state_version INTEGER DEFAULT 1,
                 todos TEXT,
                 todos_updated_at INTEGER,
+                permission_mode TEXT,
+                model_mode TEXT,
                 active INTEGER DEFAULT 0,
                 active_at INTEGER,
                 seq INTEGER DEFAULT 0
@@ -148,6 +156,8 @@ export class Store {
                 metadata_version INTEGER DEFAULT 1,
                 runner_state TEXT,
                 runner_state_version INTEGER DEFAULT 1,
+                permission_mode TEXT,
+                model_mode TEXT,
                 active INTEGER DEFAULT 0,
                 active_at INTEGER,
                 seq INTEGER DEFAULT 0
@@ -278,6 +288,19 @@ export class Store {
 
     private migrateFromV2ToV3(): void {
         return
+    }
+
+    private migrateFromV3ToV4(): void {
+        const columns = new Set(
+            (this.db.prepare('PRAGMA table_info(sessions)').all() as Array<{ name: string }>)
+                .map(r => r.name)
+        )
+        if (!columns.has('permission_mode')) {
+            this.db.exec('ALTER TABLE sessions ADD COLUMN permission_mode TEXT')
+        }
+        if (!columns.has('model_mode')) {
+            this.db.exec('ALTER TABLE sessions ADD COLUMN model_mode TEXT')
+        }
     }
 
     private getMachineColumnNames(): Set<string> {

@@ -383,8 +383,11 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return sessionResult
         }
 
+        // Get agent type from session metadata, default to 'claude'
+        const agent = sessionResult.session.metadata?.flavor ?? 'claude'
+
         try {
-            const result = await engine.listSkills(sessionResult.sessionId)
+            const result = await engine.listSkills(sessionResult.sessionId, agent)
             return c.json(result)
         } catch (error) {
             return c.json({

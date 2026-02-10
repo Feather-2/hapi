@@ -14,6 +14,8 @@ export type StoredSession = {
     active: boolean
     activeAt: number | null
     seq: number
+    permissionMode: string | null
+    modelMode: string | null
 }
 
 export type StoredMachine = {

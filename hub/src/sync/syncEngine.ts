@@ -366,11 +366,16 @@ export class SyncEngine {
             return { type: 'error', message: 'No machine online', code: 'no_machine_online' }
         }
 
+        // Restore model from previous session (pass to CLI via --model flag)
+        const resumeModel = session.modelMode && session.modelMode !== 'default'
+            ? session.modelMode
+            : undefined
+
         const spawnResult = await this.rpcGateway.spawnSession(
             targetMachine.id,
             metadata.path,
             flavor,
-            undefined,
+            resumeModel,
             undefined,
             undefined,
             undefined,
@@ -392,6 +397,16 @@ export class SyncEngine {
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Failed to merge resumed session'
                 return { type: 'error', message, code: 'resume_failed' }
+            }
+        }
+
+        // Restore permission mode from previous session via RPC
+        const resumePermissionMode = session.permissionMode
+        if (resumePermissionMode && resumePermissionMode !== 'default') {
+            try {
+                await this.applySessionConfig(spawnResult.sessionId, { permissionMode: resumePermissionMode })
+            } catch {
+                // Non-fatal: session is usable even if permission mode restore fails
             }
         }
 
@@ -454,11 +469,11 @@ export class SyncEngine {
         return await this.rpcGateway.listSlashCommands(sessionId, agent)
     }
 
-    async listSkills(sessionId: string): Promise<{
+    async listSkills(sessionId: string, agent: string = 'codex'): Promise<{
         success: boolean
         skills?: Array<{ name: string; description?: string }>
         error?: string
     }> {
-        return await this.rpcGateway.listSkills(sessionId)
+        return await this.rpcGateway.listSkills(sessionId, agent)
     }
 }

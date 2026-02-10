@@ -119,8 +119,8 @@ export class SessionCache {
             thinking: existing?.thinking ?? false,
             thinkingAt: existing?.thinkingAt ?? 0,
             todos,
-            permissionMode: existing?.permissionMode,
-            modelMode: existing?.modelMode
+            permissionMode: existing?.permissionMode ?? (stored.permissionMode as PermissionMode | undefined) ?? undefined,
+            modelMode: existing?.modelMode ?? (stored.modelMode as ModelMode | undefined) ?? undefined
         }
 
         this.sessions.set(sessionId, session)
@@ -230,6 +230,7 @@ export class SessionCache {
             session.modelMode = config.modelMode
         }
 
+        this.store.sessions.updateSessionModes(sessionId, config.permissionMode, config.modelMode)
         this.publisher.emit({ type: 'session-updated', sessionId, data: session })
     }
 

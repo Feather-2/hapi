@@ -21,6 +21,8 @@ type DbSessionRow = {
     active: number
     active_at: number | null
     seq: number
+    permission_mode: string | null
+    model_mode: string | null
 }
 
 function toStoredSession(row: DbSessionRow): StoredSession {
@@ -39,7 +41,9 @@ function toStoredSession(row: DbSessionRow): StoredSession {
         todosUpdatedAt: row.todos_updated_at,
         active: row.active === 1,
         activeAt: row.active_at,
-        seq: row.seq
+        seq: row.seq,
+        permissionMode: row.permission_mode,
+        modelMode: row.model_mode
     }
 }
 
@@ -218,4 +222,19 @@ export function deleteSession(db: Database, id: string, namespace: string): bool
         'DELETE FROM sessions WHERE id = ? AND namespace = ?'
     ).run(id, namespace)
     return result.changes > 0
+}
+
+export function updateSessionModes(
+    db: Database,
+    id: string,
+    permissionMode: string | undefined,
+    modelMode: string | undefined
+): void {
+    if (permissionMode !== undefined && modelMode !== undefined) {
+        db.prepare('UPDATE sessions SET permission_mode = ?, model_mode = ? WHERE id = ?').run(permissionMode || null, modelMode || null, id)
+    } else if (permissionMode !== undefined) {
+        db.prepare('UPDATE sessions SET permission_mode = ? WHERE id = ?').run(permissionMode || null, id)
+    } else if (modelMode !== undefined) {
+        db.prepare('UPDATE sessions SET model_mode = ? WHERE id = ?').run(modelMode || null, id)
+    }
 }

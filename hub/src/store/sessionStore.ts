@@ -10,7 +10,8 @@ import {
     getSessionsByNamespace,
     setSessionTodos,
     updateSessionAgentState,
-    updateSessionMetadata
+    updateSessionMetadata,
+    updateSessionModes
 } from './sessions'
 
 export class SessionStore {
@@ -65,5 +66,9 @@ export class SessionStore {
 
     deleteSession(id: string, namespace: string): boolean {
         return deleteSession(this.db, id, namespace)
+    }
+
+    updateSessionModes(id: string, permissionMode: string | undefined, modelMode: string | undefined): void {
+        return updateSessionModes(this.db, id, permissionMode, modelMode)
     }
 }
