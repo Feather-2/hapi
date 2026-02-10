@@ -22,7 +22,7 @@ export { PushStore } from './pushStore'
 export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
 
-const SCHEMA_VERSION: number = 4
+const SCHEMA_VERSION: number = 5
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -116,6 +116,12 @@ export class Store {
             return
         }
 
+        if (currentVersion === 4 && SCHEMA_VERSION === 5) {
+            this.migrateFromV4ToV5()
+            this.setUserVersion(SCHEMA_VERSION)
+            return
+        }
+
         if (currentVersion !== SCHEMA_VERSION) {
             throw this.buildSchemaMismatchError(currentVersion)
         }
@@ -140,6 +146,7 @@ export class Store {
                 todos_updated_at INTEGER,
                 permission_mode TEXT,
                 model_mode TEXT,
+                smart_continue_enabled INTEGER,
                 active INTEGER DEFAULT 0,
                 active_at INTEGER,
                 seq INTEGER DEFAULT 0
@@ -300,6 +307,16 @@ export class Store {
         }
         if (!columns.has('model_mode')) {
             this.db.exec('ALTER TABLE sessions ADD COLUMN model_mode TEXT')
+        }
+    }
+
+    private migrateFromV4ToV5(): void {
+        const columns = new Set(
+            (this.db.prepare('PRAGMA table_info(sessions)').all() as Array<{ name: string }>)
+                .map(r => r.name)
+        )
+        if (!columns.has('smart_continue_enabled')) {
+            this.db.exec('ALTER TABLE sessions ADD COLUMN smart_continue_enabled INTEGER')
         }
     }
 

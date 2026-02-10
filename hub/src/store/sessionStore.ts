@@ -68,7 +68,7 @@ export class SessionStore {
         return deleteSession(this.db, id, namespace)
     }
 
-    updateSessionModes(id: string, permissionMode: string | undefined, modelMode: string | undefined): void {
-        return updateSessionModes(this.db, id, permissionMode, modelMode)
+    updateSessionModes(id: string, permissionMode: string | undefined, modelMode: string | undefined, smartContinueEnabled?: boolean | undefined): void {
+        return updateSessionModes(this.db, id, permissionMode, modelMode, smartContinueEnabled)
     }
 }

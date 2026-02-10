@@ -320,6 +320,13 @@ export class ApiClient {
         })
     }
 
+    async setSmartContinue(sessionId: string, enabled: boolean): Promise<void> {
+        await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/smart-continue`, {
+            method: 'POST',
+            body: JSON.stringify({ enabled })
+        })
+    }
+
     async approvePermission(
         sessionId: string,
         requestId: string,

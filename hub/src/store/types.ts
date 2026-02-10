@@ -16,6 +16,7 @@ export type StoredSession = {
     seq: number
     permissionMode: string | null
     modelMode: string | null
+    smartContinueEnabled: boolean | null
 }
 
 export type StoredMachine = {

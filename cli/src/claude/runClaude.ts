@@ -294,7 +294,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         if (!payload || typeof payload !== 'object') {
             throw new Error('Invalid session config payload');
         }
-        const config = payload as { permissionMode?: unknown; modelMode?: unknown };
+        const config = payload as { permissionMode?: unknown; modelMode?: unknown; smartContinueEnabled?: unknown };
 
         if (config.permissionMode !== undefined) {
             currentPermissionMode = resolvePermissionMode(config.permissionMode);
@@ -303,6 +303,10 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         if (config.modelMode !== undefined) {
             const resolvedModelMode = resolveModelMode(config.modelMode);
             currentModelMode = resolvedModelMode;
+        }
+
+        if (config.smartContinueEnabled !== undefined && typeof config.smartContinueEnabled === 'boolean') {
+            session.setSmartContinueEnabled(config.smartContinueEnabled);
         }
 
         syncSessionModes();

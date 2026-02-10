@@ -305,6 +305,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                         isAborted: (toolCallId: string) => {
                             return permissionHandler.isAborted(toolCallId);
                         },
+                        smartContinueEnabled: session.smartContinueEnabled,
                         nextMessage: async () => {
                             if (pending) {
                                 let p = pending;

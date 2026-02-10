@@ -134,7 +134,8 @@ export const SessionSchema = z.object({
     thinkingAt: z.number(),
     todos: TodosSchema.optional(),
     permissionMode: PermissionModeSchema.optional(),
-    modelMode: ModelModeSchema.optional()
+    modelMode: ModelModeSchema.optional(),
+    smartContinueEnabled: z.boolean().optional()
 })
 
 export type Session = z.infer<typeof SessionSchema>

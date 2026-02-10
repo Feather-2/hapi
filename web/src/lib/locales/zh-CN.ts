@@ -200,6 +200,8 @@ export default {
   'composer.send': '发送',
   'composer.stop': '停止',
   'composer.voice': '语音助手',
+  'composer.smartContinueOn': '智能续写：已开启',
+  'composer.smartContinueOff': '智能续写：已关闭',
 
   // Voice assistant
   'voice.connecting': '连接中...',

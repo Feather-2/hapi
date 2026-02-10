@@ -287,6 +287,32 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
     })
 
+    app.post('/sessions/:id/smart-continue', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine, { requireActive: true })
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const enabled = body && typeof body === 'object' && 'enabled' in body ? Boolean(body.enabled) : undefined
+        if (enabled === undefined) {
+            return c.json({ error: 'Invalid body: enabled is required' }, 400)
+        }
+
+        try {
+            await engine.applySessionConfig(sessionResult.sessionId, { smartContinueEnabled: enabled })
+            return c.json({ ok: true })
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to apply smart continue setting'
+            return c.json({ error: message }, 409)
+        }
+    })
+
     app.patch('/sessions/:id', async (c) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {

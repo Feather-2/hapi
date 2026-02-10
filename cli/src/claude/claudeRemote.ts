@@ -35,7 +35,8 @@ export async function claudeRemote(opts: {
     onThinkingChange?: (thinking: boolean) => void,
     onMessage: (message: SDKMessage) => void,
     onCompletionEvent?: (message: string) => void,
-    onSessionReset?: () => void
+    onSessionReset?: () => void,
+    smartContinueEnabled?: boolean
 }) {
 
     // Check if session is valid
@@ -160,7 +161,7 @@ export async function claudeRemote(opts: {
     const MAX_AUTO_CONTINUE = 3;
     let smartContinueCount = 0;
     const recentAssistantTexts: string[] = [];
-    const smartContinueConfig = loadCheckpointConfig(opts.path);
+    const smartContinueConfig = opts.smartContinueEnabled !== false ? loadCheckpointConfig(opts.path) : null;
     if (smartContinueConfig?.enabled) {
         logger.debug('[claudeRemote] Checkpoint mode detected, smart auto-continue enabled');
     }
@@ -211,7 +212,7 @@ export async function claudeRemote(opts: {
                 // Auto-continue: if model stopped with success but very few turns,
                 // it likely stopped prematurely due to prompt conflicts.
                 // Inject a continuation message instead of waiting for user.
-                if (resultMsg.subtype === 'success' && resultMsg.num_turns <= 1 && !isCompactCommand && autoContinueCount < MAX_AUTO_CONTINUE) {
+                if (opts.smartContinueEnabled !== false && resultMsg.subtype === 'success' && resultMsg.num_turns <= 1 && !isCompactCommand && autoContinueCount < MAX_AUTO_CONTINUE) {
                     autoContinueCount++;
                     logger.debug(`[claudeRemote] Suspected premature stop (num_turns <= 1), auto-continuing (${autoContinueCount}/${MAX_AUTO_CONTINUE})`);
                     messages.push({ type: 'user', message: { role: 'user', content: 'Continue. You stopped before completing the task. Pick up where you left off.' } });

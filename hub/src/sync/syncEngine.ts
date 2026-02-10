@@ -282,19 +282,25 @@ export class SyncEngine {
         config: {
             permissionMode?: PermissionMode
             modelMode?: ModelMode
+            smartContinueEnabled?: boolean
         }
     ): Promise<void> {
-        const result = await this.rpcGateway.requestSessionConfig(sessionId, config)
+        const rpcConfig: { permissionMode?: PermissionMode; modelMode?: ModelMode; smartContinueEnabled?: boolean } = {}
+        if (config.permissionMode !== undefined) rpcConfig.permissionMode = config.permissionMode
+        if (config.modelMode !== undefined) rpcConfig.modelMode = config.modelMode
+        if (config.smartContinueEnabled !== undefined) rpcConfig.smartContinueEnabled = config.smartContinueEnabled
+
+        const result = await this.rpcGateway.requestSessionConfig(sessionId, rpcConfig)
         if (!result || typeof result !== 'object') {
             throw new Error('Invalid response from session config RPC')
         }
-        const obj = result as { applied?: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode'] } }
+        const obj = result as { applied?: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode']; smartContinueEnabled?: boolean } }
         const applied = obj.applied
         if (!applied || typeof applied !== 'object') {
             throw new Error('Missing applied session config')
         }
 
-        this.sessionCache.applySessionConfig(sessionId, applied)
+        this.sessionCache.applySessionConfig(sessionId, { ...applied, smartContinueEnabled: config.smartContinueEnabled })
     }
 
     async spawnSession(

@@ -79,6 +79,12 @@ export class Session extends AgentSessionBase<EnhancedMode> {
         this.modelMode = mode;
     };
 
+    smartContinueEnabled?: boolean;
+
+    setSmartContinueEnabled = (enabled: boolean): void => {
+        this.smartContinueEnabled = enabled;
+    };
+
     recordLocalLaunchFailure = (message: string, exitReason: LocalLaunchExitReason): void => {
         this.localLaunchFailure = { message, exitReason };
     };

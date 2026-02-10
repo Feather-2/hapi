@@ -120,7 +120,8 @@ export class SessionCache {
             thinkingAt: existing?.thinkingAt ?? 0,
             todos,
             permissionMode: existing?.permissionMode ?? (stored.permissionMode as PermissionMode | undefined) ?? undefined,
-            modelMode: existing?.modelMode ?? (stored.modelMode as ModelMode | undefined) ?? undefined
+            modelMode: existing?.modelMode ?? (stored.modelMode as ModelMode | undefined) ?? undefined,
+            smartContinueEnabled: existing?.smartContinueEnabled ?? (stored.smartContinueEnabled != null ? stored.smartContinueEnabled : undefined)
         }
 
         this.sessions.set(sessionId, session)
@@ -217,7 +218,7 @@ export class SessionCache {
         }
     }
 
-    applySessionConfig(sessionId: string, config: { permissionMode?: PermissionMode; modelMode?: ModelMode }): void {
+    applySessionConfig(sessionId: string, config: { permissionMode?: PermissionMode; modelMode?: ModelMode; smartContinueEnabled?: boolean }): void {
         const session = this.sessions.get(sessionId) ?? this.refreshSession(sessionId)
         if (!session) {
             return
@@ -229,8 +230,11 @@ export class SessionCache {
         if (config.modelMode !== undefined) {
             session.modelMode = config.modelMode
         }
+        if (config.smartContinueEnabled !== undefined) {
+            session.smartContinueEnabled = config.smartContinueEnabled
+        }
 
-        this.store.sessions.updateSessionModes(sessionId, config.permissionMode, config.modelMode)
+        this.store.sessions.updateSessionModes(sessionId, config.permissionMode, config.modelMode, config.smartContinueEnabled)
         this.publisher.emit({ type: 'session-updated', sessionId, data: session })
     }
 

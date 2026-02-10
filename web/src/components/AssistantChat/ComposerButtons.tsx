@@ -125,6 +125,25 @@ function TerminalIcon() {
     )
 }
 
+function SmartContinueIcon(props: { enabled: boolean }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill={props.enabled ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M21 12a9 9 0 1 1-9-9" />
+            <polyline points="21 3 21 9 15 9" />
+        </svg>
+    )
+}
+
 function AttachmentIcon() {
     return (
         <svg
@@ -318,6 +337,9 @@ export function ComposerButtons(props: {
     onVoiceToggle: () => void
     onVoiceMicToggle?: () => void
     onSend: () => void
+    showSmartContinueButton?: boolean
+    smartContinueEnabled?: boolean
+    onSmartContinueToggle?: () => void
 }) {
     const { t } = useTranslation()
     const isVoiceConnected = props.voiceStatus === 'connected'
@@ -383,6 +405,23 @@ export function ComposerButtons(props: {
                         onClick={props.onSwitch}
                     >
                         <SwitchToRemoteIcon />
+                    </button>
+                ) : null}
+
+                {props.showSmartContinueButton && props.onSmartContinueToggle ? (
+                    <button
+                        type="button"
+                        aria-label={props.smartContinueEnabled ? t('composer.smartContinueOn') : t('composer.smartContinueOff')}
+                        title={props.smartContinueEnabled ? t('composer.smartContinueOn') : t('composer.smartContinueOff')}
+                        className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                            props.smartContinueEnabled
+                                ? 'text-amber-500 hover:bg-[var(--app-bg)]'
+                                : 'text-[var(--app-fg)]/60 hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)]'
+                        }`}
+                        onClick={props.onSmartContinueToggle}
+                        disabled={props.controlsDisabled}
+                    >
+                        <SmartContinueIcon enabled={Boolean(props.smartContinueEnabled)} />
                     </button>
                 ) : null}
 

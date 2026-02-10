@@ -198,6 +198,8 @@ export default {
   'composer.send': 'Send',
   'composer.stop': 'Stop',
   'composer.voice': 'Voice assistant',
+  'composer.smartContinueOn': 'Smart Continue: ON',
+  'composer.smartContinueOff': 'Smart Continue: OFF',
 
   // Voice assistant
   'voice.connecting': 'Connecting...',

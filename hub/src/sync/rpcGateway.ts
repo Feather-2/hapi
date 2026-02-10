@@ -94,6 +94,7 @@ export class RpcGateway {
         config: {
             permissionMode?: PermissionMode
             modelMode?: ModelMode
+            smartContinueEnabled?: boolean
         }
     ): Promise<unknown> {
         return await this.sessionRpc(sessionId, 'set-session-config', config)

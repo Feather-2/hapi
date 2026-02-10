@@ -58,6 +58,9 @@ export function HappyComposer(props: {
     voiceMicMuted?: boolean
     onVoiceToggle?: () => void
     onVoiceMicToggle?: () => void
+    // Smart continue props
+    smartContinueEnabled?: boolean
+    onSmartContinueToggle?: () => void
 }) {
     const { t } = useTranslation()
     const {
@@ -82,6 +85,9 @@ export function HappyComposer(props: {
         onVoiceToggle,
         onVoiceMicToggle
     } = props
+
+    const smartContinueEnabled = props.smartContinueEnabled ?? false
+    const onSmartContinueToggle = props.onSmartContinueToggle
 
     // Use ?? so missing values fall back to default (destructuring defaults only handle undefined)
     const permissionMode = rawPermissionMode ?? 'default'
@@ -576,6 +582,9 @@ export function HappyComposer(props: {
                             onVoiceToggle={onVoiceToggle ?? (() => {})}
                             onVoiceMicToggle={onVoiceMicToggle}
                             onSend={handleSend}
+                            showSmartContinueButton={Boolean(onSmartContinueToggle)}
+                            smartContinueEnabled={smartContinueEnabled}
+                            onSmartContinueToggle={onSmartContinueToggle}
                         />
                     </div>
                 </ComposerPrimitive.Root>

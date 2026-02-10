@@ -23,6 +23,7 @@ type DbSessionRow = {
     seq: number
     permission_mode: string | null
     model_mode: string | null
+    smart_continue_enabled: number | null
 }
 
 function toStoredSession(row: DbSessionRow): StoredSession {
@@ -43,7 +44,8 @@ function toStoredSession(row: DbSessionRow): StoredSession {
         activeAt: row.active_at,
         seq: row.seq,
         permissionMode: row.permission_mode,
-        modelMode: row.model_mode
+        modelMode: row.model_mode,
+        smartContinueEnabled: row.smart_continue_enabled === 1 ? true : row.smart_continue_enabled === 0 ? false : null
     }
 }
 
@@ -228,13 +230,24 @@ export function updateSessionModes(
     db: Database,
     id: string,
     permissionMode: string | undefined,
-    modelMode: string | undefined
+    modelMode: string | undefined,
+    smartContinueEnabled?: boolean | undefined
 ): void {
-    if (permissionMode !== undefined && modelMode !== undefined) {
-        db.prepare('UPDATE sessions SET permission_mode = ?, model_mode = ? WHERE id = ?').run(permissionMode || null, modelMode || null, id)
-    } else if (permissionMode !== undefined) {
-        db.prepare('UPDATE sessions SET permission_mode = ? WHERE id = ?').run(permissionMode || null, id)
-    } else if (modelMode !== undefined) {
-        db.prepare('UPDATE sessions SET model_mode = ? WHERE id = ?').run(modelMode || null, id)
+    const sets: string[] = []
+    const params: unknown[] = []
+    if (permissionMode !== undefined) {
+        sets.push('permission_mode = ?')
+        params.push(permissionMode || null)
     }
+    if (modelMode !== undefined) {
+        sets.push('model_mode = ?')
+        params.push(modelMode || null)
+    }
+    if (smartContinueEnabled !== undefined) {
+        sets.push('smart_continue_enabled = ?')
+        params.push(smartContinueEnabled ? 1 : 0)
+    }
+    if (sets.length === 0) return
+    params.push(id)
+    db.prepare(`UPDATE sessions SET ${sets.join(', ')} WHERE id = ?`).run(...params)
 }

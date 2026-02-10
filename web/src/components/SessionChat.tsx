@@ -45,7 +45,7 @@ export function SessionChat(props: {
     const blocksByIdRef = useRef<Map<string, ChatBlock>>(new Map())
     const [forceScrollToken, setForceScrollToken] = useState(0)
     const agentFlavor = props.session.metadata?.flavor ?? null
-    const { abortSession, switchSession, setPermissionMode, setModelMode } = useSessionActions(
+    const { abortSession, switchSession, setPermissionMode, setModelMode, setSmartContinue } = useSessionActions(
         props.api,
         props.session.id,
         agentFlavor
@@ -216,6 +216,19 @@ export function SessionChat(props: {
         }
     }, [setModelMode, props.onRefresh, haptic])
 
+    // Smart continue toggle handler
+    const handleSmartContinueToggle = useCallback(async () => {
+        try {
+            const newValue = !(props.session.smartContinueEnabled ?? false)
+            await setSmartContinue(newValue)
+            haptic.notification('success')
+            props.onRefresh()
+        } catch (e) {
+            haptic.notification('error')
+            console.error('Failed to toggle smart continue:', e)
+        }
+    }, [setSmartContinue, props.session.smartContinueEnabled, props.onRefresh, haptic])
+
     // Abort handler
     const handleAbort = useCallback(async () => {
         await abortSession()
@@ -326,6 +339,8 @@ export function SessionChat(props: {
                         voiceMicMuted={voice?.micMuted}
                         onVoiceToggle={voice ? handleVoiceToggle : undefined}
                         onVoiceMicToggle={voice ? handleVoiceMicToggle : undefined}
+                        smartContinueEnabled={props.session.smartContinueEnabled ?? false}
+                        onSmartContinueToggle={props.session.active ? handleSmartContinueToggle : undefined}
                     />
                 </div>
             </AssistantRuntimeProvider>

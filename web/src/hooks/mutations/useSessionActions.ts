@@ -16,6 +16,7 @@ export function useSessionActions(
     switchSession: () => Promise<void>
     setPermissionMode: (mode: PermissionMode) => Promise<void>
     setModelMode: (mode: ModelMode) => Promise<void>
+    setSmartContinue: (enabled: boolean) => Promise<void>
     renameSession: (name: string) => Promise<void>
     deleteSession: () => Promise<void>
     isPending: boolean
@@ -81,6 +82,16 @@ export function useSessionActions(
         onSuccess: () => void invalidateSession(),
     })
 
+    const smartContinueMutation = useMutation({
+        mutationFn: async (enabled: boolean) => {
+            if (!api || !sessionId) {
+                throw new Error('Session unavailable')
+            }
+            await api.setSmartContinue(sessionId, enabled)
+        },
+        onSuccess: () => void invalidateSession(),
+    })
+
     const renameMutation = useMutation({
         mutationFn: async (name: string) => {
             if (!api || !sessionId) {
@@ -112,6 +123,7 @@ export function useSessionActions(
         switchSession: switchMutation.mutateAsync,
         setPermissionMode: permissionMutation.mutateAsync,
         setModelMode: modelMutation.mutateAsync,
+        setSmartContinue: smartContinueMutation.mutateAsync,
         renameSession: renameMutation.mutateAsync,
         deleteSession: deleteMutation.mutateAsync,
         isPending: abortMutation.isPending
@@ -119,6 +131,7 @@ export function useSessionActions(
             || switchMutation.isPending
             || permissionMutation.isPending
             || modelMutation.isPending
+            || smartContinueMutation.isPending
             || renameMutation.isPending
             || deleteMutation.isPending,
     }
