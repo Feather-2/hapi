@@ -149,6 +149,10 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     constructor(session: Session) {
         super(session.client);
         this.session = session;
+        const sessionMode = session.getPermissionMode();
+        if (sessionMode === 'default' || sessionMode === 'acceptEdits' || sessionMode === 'bypassPermissions' || sessionMode === 'plan') {
+            this.permissionMode = sessionMode;
+        }
     }
     
     /**
