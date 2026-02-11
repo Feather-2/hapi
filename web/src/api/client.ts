@@ -299,11 +299,12 @@ export class ApiClient {
         })
     }
 
-    async unarchiveSession(sessionId: string): Promise<void> {
-        await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/unarchive`, {
+    async unarchiveSession(sessionId: string): Promise<{ sessionId?: string }> {
+        const res = await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/unarchive`, {
             method: 'POST',
             body: JSON.stringify({})
         })
+        return res as { sessionId?: string }
     }
 
     async switchSession(sessionId: string): Promise<void> {

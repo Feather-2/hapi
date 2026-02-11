@@ -219,12 +219,12 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         const namespace = c.get('namespace')
-        const result = await engine.resumeSession(sessionResult.sessionId, namespace)
+        const result = await engine.unarchiveSession(sessionResult.sessionId, namespace)
         if (result.type === 'error') {
             return c.json({ error: result.message, code: result.code }, 500)
         }
 
-        return c.json({ ok: true })
+        return c.json({ ok: true, sessionId: result.sessionId })
     })
 
     app.post('/sessions/:id/switch', async (c) => {

@@ -272,7 +272,12 @@ function SessionItem(props: {
                 sessionActive={s.active}
                 onRename={() => setRenameOpen(true)}
                 onArchive={() => setArchiveOpen(true)}
-                onUnarchive={() => unarchiveSession()}
+                onUnarchive={async () => {
+                    const newId = await unarchiveSession()
+                    if (newId && newId !== s.id) {
+                        onSelect(newId)
+                    }
+                }}
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}
             />

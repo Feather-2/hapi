@@ -265,6 +265,69 @@ export class SyncEngine {
         this.handleSessionEnd({ sid: sessionId, time: Date.now() })
     }
 
+    async unarchiveSession(sessionId: string, namespace: string): Promise<ResumeSessionResult> {
+        const result = await this.resumeSession(sessionId, namespace)
+        if (result.type === 'error' && result.code === 'resume_unavailable') {
+            // No resume token — spawn a fresh CLI process in the same directory
+            const access = this.sessionCache.resolveSessionAccess(sessionId, namespace)
+            if (!access.ok) {
+                return { type: 'error', message: 'Session not found', code: 'session_not_found' }
+            }
+            const metadata = access.session.metadata
+            if (!metadata || typeof metadata.path !== 'string') {
+                return { type: 'error', message: 'Session metadata missing path', code: 'resume_unavailable' }
+            }
+            const onlineMachines = this.machineCache.getOnlineMachinesByNamespace(namespace)
+            if (onlineMachines.length === 0) {
+                return { type: 'error', message: 'No machine online', code: 'no_machine_online' }
+            }
+            const targetMachine = (() => {
+                if (metadata.machineId) {
+                    const exact = onlineMachines.find(m => m.id === metadata.machineId)
+                    if (exact) return exact
+                }
+                if (metadata.host) {
+                    const hostMatch = onlineMachines.find(m => m.metadata?.host === metadata.host)
+                    if (hostMatch) return hostMatch
+                }
+                return onlineMachines[0]
+            })()
+            if (!targetMachine) {
+                return { type: 'error', message: 'No machine online', code: 'no_machine_online' }
+            }
+            const flavor = metadata.flavor === 'codex' || metadata.flavor === 'gemini' || metadata.flavor === 'opencode'
+                ? metadata.flavor
+                : 'claude' as const
+            const spawnResult = await this.rpcGateway.spawnSession(
+                targetMachine.id,
+                metadata.path,
+                flavor,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined
+            )
+            if (spawnResult.type !== 'success') {
+                return { type: 'error', message: spawnResult.message, code: 'resume_failed' }
+            }
+            const becameActive = await this.waitForSessionActive(spawnResult.sessionId)
+            if (!becameActive) {
+                return { type: 'error', message: 'Session failed to become active', code: 'resume_failed' }
+            }
+            if (spawnResult.sessionId !== sessionId) {
+                try {
+                    await this.sessionCache.mergeSessions(sessionId, spawnResult.sessionId, namespace)
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : 'Failed to merge session'
+                    return { type: 'error', message, code: 'resume_failed' }
+                }
+            }
+            return { type: 'success', sessionId: spawnResult.sessionId }
+        }
+        return result
+    }
+
     async switchSession(sessionId: string, to: 'remote' | 'local'): Promise<void> {
         await this.rpcGateway.switchSession(sessionId, to)
     }
