@@ -121,7 +121,7 @@ export async function loadServerSettings(dataDir: string): Promise<ServerSetting
     }
 
     // listenHost: env > file (new or old name) > default
-    let listenHost = '127.0.0.1'
+    let listenHost = '0.0.0.0'
     if (process.env.HAPI_LISTEN_HOST) {
         listenHost = process.env.HAPI_LISTEN_HOST
         sources.listenHost = 'env'
@@ -200,7 +200,7 @@ export async function loadServerSettings(dataDir: string): Promise<ServerSetting
         corsOrigins = settings.corsOrigins
         sources.corsOrigins = 'file'
     } else {
-        corsOrigins = deriveCorsOrigins(publicUrl)
+        corsOrigins = ['*']
     }
 
     // Save settings if any new values were added
