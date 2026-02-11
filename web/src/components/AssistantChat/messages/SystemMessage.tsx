@@ -8,6 +8,12 @@ export function HappySystemMessage() {
         if (message.role !== 'system') return ''
         return message.content[0]?.type === 'text' ? message.content[0].text : ''
     })
+    const eventType = useAssistantState(({ message }) => {
+        if (message.role !== 'system') return null
+        const custom = message.metadata.custom as Partial<HappyChatMessageMetadata> | undefined
+        const event = custom?.kind === 'event' ? custom.event : undefined
+        return event?.type ?? null
+    })
     const icon = useAssistantState(({ message }) => {
         if (message.role !== 'system') return null
         const custom = message.metadata.custom as Partial<HappyChatMessageMetadata> | undefined
@@ -17,10 +23,16 @@ export function HappySystemMessage() {
 
     if (role !== 'system') return null
 
+    const isSmartContinue = eventType === 'smart-continue'
+
     return (
         <div className="py-1">
-            <div className="mx-auto w-fit max-w-[92%] px-2 text-center text-xs text-[var(--app-hint)] opacity-80">
-                <span className="inline-flex items-center gap-1">
+            <div className={
+                isSmartContinue
+                    ? 'mx-auto w-fit max-w-[92%] px-3 py-1 text-center text-xs rounded-full bg-[var(--app-surface,#f0f0f0)] border border-[var(--app-border,#e0e0e0)] text-[var(--app-hint)] shadow-sm'
+                    : 'mx-auto w-fit max-w-[92%] px-2 text-center text-xs text-[var(--app-hint)] opacity-80'
+            }>
+                <span className="inline-flex items-center gap-1.5">
                     {icon ? <span aria-hidden="true">{icon}</span> : null}
                     <span>{text}</span>
                 </span>

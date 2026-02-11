@@ -215,6 +215,14 @@ export async function claudeRemote(opts: {
                 if (opts.smartContinueEnabled !== false && resultMsg.subtype === 'success' && resultMsg.num_turns <= 1 && !isCompactCommand && autoContinueCount < MAX_AUTO_CONTINUE) {
                     autoContinueCount++;
                     logger.debug(`[claudeRemote] Suspected premature stop (num_turns <= 1), auto-continuing (${autoContinueCount}/${MAX_AUTO_CONTINUE})`);
+                    opts.onMessage({
+                        type: 'system',
+                        subtype: 'smart_continue',
+                        smartContinueAction: 'auto_continue',
+                        smartContinueReason: 'premature_stop',
+                        smartContinueAttempt: autoContinueCount,
+                        smartContinueMaxAttempts: MAX_AUTO_CONTINUE,
+                    } as any);
                     messages.push({ type: 'user', message: { role: 'user', content: 'Continue. You stopped before completing the task. Pick up where you left off.' } });
                     updateThinking(true);
                     continue;
@@ -227,14 +235,38 @@ export async function claudeRemote(opts: {
                     const hasCompletionMarker = recentAssistantTexts.some(t => t.includes(smartContinueConfig.completionMarker));
                     if (!hasCompletionMarker && resultMsg.subtype === 'success' && resultMsg.num_turns > 1) {
                         logger.debug(`[claudeRemote] Checkpoint active, no ${smartContinueConfig.completionMarker} found. Assessing completion...`);
+                        opts.onMessage({
+                            type: 'system',
+                            subtype: 'smart_continue',
+                            smartContinueAction: 'assessing',
+                            smartContinueReason: 'no_completion_marker',
+                            smartContinueAttempt: smartContinueCount + 1,
+                            smartContinueMaxAttempts: smartContinueConfig.maxRetries,
+                        } as any);
                         const isDone = await assessTaskCompletion(recentAssistantTexts, smartContinueConfig);
                         if (!isDone) {
                             smartContinueCount++;
                             logger.debug(`[claudeRemote] Smart continue: task not done, injecting continuation (${smartContinueCount}/${smartContinueConfig.maxRetries})`);
+                            opts.onMessage({
+                                type: 'system',
+                                subtype: 'smart_continue',
+                                smartContinueAction: 'continuing',
+                                smartContinueResult: 'NOT_DONE',
+                                smartContinueAttempt: smartContinueCount,
+                                smartContinueMaxAttempts: smartContinueConfig.maxRetries,
+                            } as any);
                             messages.push({ type: 'user', message: { role: 'user', content: smartContinueConfig.continueMessage } });
                             updateThinking(true);
                             continue;
                         }
+                        opts.onMessage({
+                            type: 'system',
+                            subtype: 'smart_continue',
+                            smartContinueAction: 'completed',
+                            smartContinueResult: 'DONE',
+                            smartContinueAttempt: smartContinueCount + 1,
+                            smartContinueMaxAttempts: smartContinueConfig.maxRetries,
+                        } as any);
                         logger.debug('[claudeRemote] Smart continue: task assessed as done, proceeding normally');
                     }
                 }

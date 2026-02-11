@@ -279,6 +279,24 @@ export function normalizeAgentRecord(
                 meta
             }
         }
+        if (data.type === 'system' && data.subtype === 'smart_continue') {
+            return {
+                id: messageId,
+                localId,
+                createdAt,
+                role: 'event',
+                content: {
+                    type: 'smart-continue',
+                    action: asString(data.smartContinueAction) ?? 'unknown',
+                    reason: asString(data.smartContinueReason) ?? undefined,
+                    result: asString(data.smartContinueResult) ?? undefined,
+                    attempt: asNumber(data.smartContinueAttempt) ?? 0,
+                    maxAttempts: asNumber(data.smartContinueMaxAttempts) ?? 0
+                },
+                isSidechain: false,
+                meta
+            }
+        }
         return null
     }
 

@@ -66,6 +66,22 @@ export function getEventPresentation(event: AgentEvent): EventPresentation {
     if (event.type === 'compact') {
         return { icon: '📦', text: 'Conversation compacted' }
     }
+    if (event.type === 'smart-continue') {
+        const e = event as { action: string; reason?: string; result?: string; attempt: number; maxAttempts: number }
+        if (e.action === 'auto_continue') {
+            return { icon: '🔄', text: `Smart Continue: auto-continuing (${e.attempt}/${e.maxAttempts})` }
+        }
+        if (e.action === 'assessing') {
+            return { icon: '🔍', text: `Smart Continue: assessing completion... (${e.attempt}/${e.maxAttempts})` }
+        }
+        if (e.action === 'continuing') {
+            return { icon: '🔄', text: `Smart Continue: task not done, continuing (${e.attempt}/${e.maxAttempts})` }
+        }
+        if (e.action === 'completed') {
+            return { icon: '✅', text: 'Smart Continue: task assessed as done' }
+        }
+        return { icon: '🔄', text: `Smart Continue: ${e.action}` }
+    }
     try {
         return { icon: null, text: JSON.stringify(event) }
     } catch {
