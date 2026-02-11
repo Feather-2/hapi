@@ -293,7 +293,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         // Handle special cases
         //
 
-        const effectiveMode = mode.permissionMode || this.permissionMode;
+        const effectiveMode = this.session.getPermissionMode() || mode.permissionMode || this.permissionMode;
 
         if (!isQuestionTool && effectiveMode === 'bypassPermissions') {
             return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
