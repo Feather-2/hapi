@@ -63,6 +63,7 @@ export default {
   'session.action.rename': 'Rename',
   'session.action.archive': 'Archive',
   'session.action.delete': 'Delete',
+  'session.action.restore': 'Restore',
   'session.action.copy': 'Copy',
 
   // Dialogs
