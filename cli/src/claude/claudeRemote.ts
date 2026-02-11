@@ -212,7 +212,7 @@ export async function claudeRemote(opts: {
                 // Auto-continue: if model stopped with success but very few turns,
                 // it likely stopped prematurely due to prompt conflicts.
                 // Inject a continuation message instead of waiting for user.
-                if (opts.smartContinueEnabled !== false && resultMsg.subtype === 'success' && resultMsg.num_turns <= 1 && !isCompactCommand && autoContinueCount < MAX_AUTO_CONTINUE) {
+                if (opts.smartContinueEnabled !== false && resultMsg.subtype === 'success' && resultMsg.num_turns <= 1 && !isCompactCommand && autoContinueCount === 0) {
                     autoContinueCount++;
                     logger.debug(`[claudeRemote] Suspected premature stop (num_turns <= 1), auto-continuing (${autoContinueCount}/${MAX_AUTO_CONTINUE})`);
                     opts.onMessage({
