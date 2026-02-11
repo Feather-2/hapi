@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'fs/promises';
+import { readdir, readFile, stat } from 'fs/promises';
 import { join, basename } from 'path';
 import { homedir } from 'os';
 import { parse as parseYaml } from 'yaml';
@@ -64,7 +64,8 @@ async function listTopLevelSkillDirs(skillsRoot: string): Promise<string[]> {
         const result: string[] = [];
 
         for (const entry of entries) {
-            if (!entry.isDirectory()) {
+            const isDir = entry.isDirectory() || (entry.isSymbolicLink() && (await stat(join(skillsRoot, entry.name)).then(s => s.isDirectory(), () => false)));
+            if (!isDir) {
                 continue;
             }
 
