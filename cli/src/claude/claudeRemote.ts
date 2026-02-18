@@ -207,12 +207,19 @@ export async function claudeRemote(opts: {
             if (message.type === 'result') {
                 updateThinking(false);
                 const resultMsg = message as SDKResultMessage;
-                logger.debug(`[claudeRemote] Result received: subtype=${resultMsg.subtype} num_turns=${resultMsg.num_turns} is_error=${resultMsg.is_error} cost=$${resultMsg.total_cost_usd?.toFixed(4)} duration=${resultMsg.duration_ms}ms`);
+                const resultSummary = `subtype=${resultMsg.subtype} num_turns=${resultMsg.num_turns} is_error=${resultMsg.is_error} cost=$${resultMsg.total_cost_usd?.toFixed(4)} duration=${resultMsg.duration_ms}ms duration_api=${resultMsg.duration_api_ms}ms output_tokens=${resultMsg.usage?.output_tokens ?? '?'}`;
+                logger.debug(`[claudeRemote] Result received: ${resultSummary}`);
+                if (resultMsg.is_error || resultMsg.subtype !== 'success') {
+                    console.error(`[CC Result] ERROR session=${opts.sessionId?.slice(0, 8)} ${resultSummary} result=${resultMsg.result?.slice(0, 200)}`);
+                } else if (resultMsg.num_turns <= 1 && resultMsg.duration_ms > 5000) {
+                    console.log(`[CC Result] SUSPECT session=${opts.sessionId?.slice(0, 8)} ${resultSummary} (1 turn but long duration, possible truncation)`);
+                }
 
                 // Auto-continue: if model stopped with success but very few turns,
                 // it likely stopped prematurely due to prompt conflicts.
-                // Inject a continuation message instead of waiting for user.
-                if (opts.smartContinueEnabled !== false && resultMsg.subtype === 'success' && resultMsg.num_turns <= 1 && !isCompactCommand && autoContinueCount === 0) {
+                // Skip if model spent significant time/cost (indicates real reasoning work).
+                const hasSubstantialWork = resultMsg.duration_ms > 10_000 || resultMsg.total_cost_usd > 0.01 || recentAssistantTexts.length > 0;
+                if (opts.smartContinueEnabled !== false && resultMsg.subtype === 'success' && resultMsg.num_turns <= 1 && !isCompactCommand && autoContinueCount === 0 && !hasSubstantialWork) {
                     autoContinueCount++;
                     logger.debug(`[claudeRemote] Suspected premature stop (num_turns <= 1), auto-continuing (${autoContinueCount}/${MAX_AUTO_CONTINUE})`);
                     opts.onMessage({
@@ -309,8 +316,8 @@ export async function claudeRemote(opts: {
     } catch (e) {
         if (e instanceof AbortError) {
             logger.debug(`[claudeRemote] Aborted`);
-            // Ignore
         } else {
+            console.error(`[CC Error] session=${opts.sessionId?.slice(0, 8)} error=${e instanceof Error ? e.message : String(e)}`);
             throw e;
         }
     } finally {

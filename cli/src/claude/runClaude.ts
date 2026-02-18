@@ -306,7 +306,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         }
 
         if (config.smartContinueEnabled !== undefined && typeof config.smartContinueEnabled === 'boolean') {
-            session.setSmartContinueEnabled(config.smartContinueEnabled);
+            currentSessionRef.current?.setSmartContinueEnabled(config.smartContinueEnabled);
         }
 
         syncSessionModes();
