@@ -40,6 +40,18 @@ function estimateBase64Bytes(base64: string): number {
 export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
 
+    app.get('/diagnostics/disconnects', (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionId = c.req.query('sessionId') ?? undefined
+        const limit = Math.min(Number(c.req.query('limit')) || 50, 100)
+        const diagnostics = engine.getDisconnectDiagnostics({ sessionId, limit })
+        return c.json({ diagnostics })
+    })
+
     app.get('/sessions', (c) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {

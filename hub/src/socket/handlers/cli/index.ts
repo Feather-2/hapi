@@ -29,6 +29,13 @@ type MachineAlivePayload = {
     time: number
 }
 
+export type SessionDisconnectPayload = {
+    sessionId: string
+    reason: string
+    namespace: string
+    connectedAt: number
+}
+
 export type CliHandlersDeps = {
     io: SocketServer
     store: Store
@@ -37,13 +44,15 @@ export type CliHandlersDeps = {
     onSessionAlive?: (payload: SessionAlivePayload) => void
     onSessionEnd?: (payload: SessionEndPayload) => void
     onMachineAlive?: (payload: MachineAlivePayload) => void
+    onSessionDisconnect?: (payload: SessionDisconnectPayload) => void
     onWebappEvent?: (event: SyncEvent) => void
 }
 
 export function registerCliHandlers(socket: CliSocketWithData, deps: CliHandlersDeps): void {
-    const { io, store, rpcRegistry, terminalRegistry, onSessionAlive, onSessionEnd, onMachineAlive, onWebappEvent } = deps
+    const { io, store, rpcRegistry, terminalRegistry, onSessionAlive, onSessionEnd, onMachineAlive, onSessionDisconnect, onWebappEvent } = deps
     const terminalNamespace = io.of('/terminal')
     const namespace = typeof socket.data.namespace === 'string' ? socket.data.namespace : null
+    const connectedAt = Date.now()
 
     const resolveSessionAccess = (sessionId: string): AccessResult<StoredSession> => {
         if (!namespace) {
@@ -120,8 +129,19 @@ export function registerCliHandlers(socket: CliSocketWithData, deps: CliHandlers
         callback()
     })
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
         rpcRegistry.unregisterAll(socket)
         cleanupTerminalHandlers(socket, { terminalRegistry, terminalNamespace })
+
+        const auth = socket.handshake.auth as Record<string, unknown> | undefined
+        const sessionId = typeof auth?.sessionId === 'string' ? auth.sessionId : null
+        if (sessionId && namespace) {
+            onSessionDisconnect?.({
+                sessionId,
+                reason,
+                namespace,
+                connectedAt
+            })
+        }
     })
 }

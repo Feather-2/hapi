@@ -25,6 +25,7 @@ import {
     type RpcUploadFileResponse
 } from './rpcGateway'
 import { SessionCache } from './sessionCache'
+import { assessDisconnect } from './disconnectAssessor'
 
 export type { Session, SyncEvent } from '@hapi/protocol/types'
 export type { Machine } from './machineCache'
@@ -42,12 +43,50 @@ export type ResumeSessionResult =
     | { type: 'success'; sessionId: string }
     | { type: 'error'; message: string; code: 'session_not_found' | 'access_denied' | 'no_machine_online' | 'resume_unavailable' | 'resume_failed' }
 
+export type DisconnectDiagnostic = {
+    sessionId: string
+    namespace: string
+    reason: string
+    timestamp: number
+    wasThinking: boolean
+    wasActive: boolean
+    lastActiveAt: number
+    connectionDurationMs: number
+    lastMessage?: {
+        seq: number | null
+        content: unknown
+        createdAt: number
+    }
+    sessionMeta?: {
+        path?: string
+        host?: string
+        flavor?: string
+    }
+    assessment?: {
+        shouldReconnect: boolean
+        reason: string
+        confidence: 'high' | 'medium' | 'low'
+        assessmentMethod: 'rule' | 'ai'
+    }
+    reconnectResult?: {
+        attempted: boolean
+        success: boolean
+        newSessionId?: string
+        error?: string
+    }
+}
+
+const MAX_DISCONNECT_DIAGNOSTICS = 100
+const AUTO_RECONNECT_ENABLED = process.env.HAPI_AUTO_RECONNECT !== '0'
+
 export class SyncEngine {
     private readonly eventPublisher: EventPublisher
     private readonly sessionCache: SessionCache
     private readonly machineCache: MachineCache
     private readonly messageService: MessageService
     private readonly rpcGateway: RpcGateway
+    private readonly store: Store
+    private readonly disconnectDiagnostics: DisconnectDiagnostic[] = []
     private inactivityTimer: NodeJS.Timeout | null = null
 
     constructor(
@@ -56,6 +95,7 @@ export class SyncEngine {
         rpcRegistry: RpcRegistry,
         sseManager: SSEManager
     ) {
+        this.store = store
         this.eventPublisher = new EventPublisher(sseManager, (event) => this.resolveNamespace(event))
         this.sessionCache = new SessionCache(store, this.eventPublisher)
         this.machineCache = new MachineCache(store, this.eventPublisher)
@@ -198,6 +238,136 @@ export class SyncEngine {
 
     handleMachineAlive(payload: { machineId: string; time: number }): void {
         this.machineCache.handleMachineAlive(payload)
+    }
+
+    handleSessionDisconnect(payload: {
+        sessionId: string
+        reason: string
+        namespace: string
+        connectedAt: number
+    }): void {
+        const now = Date.now()
+        const session = this.getSession(payload.sessionId)
+
+        // Fetch last message for context
+        const messages = this.store.messages.getMessages(payload.sessionId, 1)
+        const lastMessage = messages.length > 0
+            ? { seq: messages[0].seq, content: messages[0].content, createdAt: messages[0].createdAt }
+            : undefined
+
+        const diagnostic: DisconnectDiagnostic = {
+            sessionId: payload.sessionId,
+            namespace: payload.namespace,
+            reason: payload.reason,
+            timestamp: now,
+            wasThinking: session?.thinking ?? false,
+            wasActive: session?.active ?? false,
+            lastActiveAt: session?.activeAt ?? 0,
+            connectionDurationMs: now - payload.connectedAt,
+            lastMessage,
+            sessionMeta: session?.metadata
+                ? { path: session.metadata.path, host: session.metadata.host, flavor: session.metadata.flavor ?? undefined }
+                : undefined
+        }
+
+        // Ring buffer: keep last N entries
+        this.disconnectDiagnostics.push(diagnostic)
+        if (this.disconnectDiagnostics.length > MAX_DISCONNECT_DIAGNOSTICS) {
+            this.disconnectDiagnostics.shift()
+        }
+
+        console.log(
+            `[Disconnect] session=${payload.sessionId.slice(0, 8)} reason=${payload.reason} thinking=${diagnostic.wasThinking} duration=${Math.round(diagnostic.connectionDurationMs / 1000)}s`
+        )
+
+        // Broadcast initial disconnect event
+        this.eventPublisher.emit({
+            type: 'session-disconnected',
+            sessionId: payload.sessionId,
+            data: {
+                reason: payload.reason,
+                wasThinking: diagnostic.wasThinking,
+                wasActive: diagnostic.wasActive,
+                lastActiveAt: diagnostic.lastActiveAt,
+                connectionDurationMs: diagnostic.connectionDurationMs,
+                lastMessage,
+                sessionMeta: diagnostic.sessionMeta
+            }
+        })
+
+        // Async: assess and auto-reconnect
+        if (AUTO_RECONNECT_ENABLED) {
+            void this.assessAndReconnect(diagnostic)
+        }
+    }
+
+    private async assessAndReconnect(diagnostic: DisconnectDiagnostic): Promise<void> {
+        try {
+            const assessment = await assessDisconnect(diagnostic)
+            diagnostic.assessment = assessment
+
+            console.log(
+                `[Disconnect] session=${diagnostic.sessionId.slice(0, 8)} assessment=${assessment.shouldReconnect ? 'RECONNECT' : 'SKIP'} ` +
+                `confidence=${assessment.confidence} method=${assessment.assessmentMethod} reason="${assessment.reason}"`
+            )
+
+            if (!assessment.shouldReconnect) {
+                diagnostic.reconnectResult = { attempted: false, success: false }
+                return
+            }
+
+            // Attempt auto-reconnect via unarchiveSession (handles both resume and fresh spawn)
+            console.log(`[Disconnect] Auto-reconnecting session=${diagnostic.sessionId.slice(0, 8)}...`)
+            const result = await this.unarchiveSession(diagnostic.sessionId, diagnostic.namespace)
+
+            if (result.type === 'success') {
+                diagnostic.reconnectResult = {
+                    attempted: true,
+                    success: true,
+                    newSessionId: result.sessionId
+                }
+                console.log(
+                    `[Disconnect] Auto-reconnect succeeded: session=${diagnostic.sessionId.slice(0, 8)} -> ${result.sessionId.slice(0, 8)}`
+                )
+
+                // Notify web clients of successful reconnection
+                this.eventPublisher.emit({
+                    type: 'session-updated',
+                    sessionId: result.sessionId,
+                    data: {
+                        active: true,
+                        autoReconnected: true,
+                        previousDisconnectReason: diagnostic.reason
+                    }
+                })
+            } else {
+                diagnostic.reconnectResult = {
+                    attempted: true,
+                    success: false,
+                    error: result.message
+                }
+                console.log(
+                    `[Disconnect] Auto-reconnect failed: session=${diagnostic.sessionId.slice(0, 8)} error="${result.message}"`
+                )
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            diagnostic.reconnectResult = {
+                attempted: true,
+                success: false,
+                error: message
+            }
+            console.error(`[Disconnect] Auto-reconnect error: session=${diagnostic.sessionId.slice(0, 8)} error="${message}"`)
+        }
+    }
+
+    getDisconnectDiagnostics(options?: { sessionId?: string; limit?: number }): DisconnectDiagnostic[] {
+        let results = this.disconnectDiagnostics
+        if (options?.sessionId) {
+            results = results.filter(d => d.sessionId === options.sessionId)
+        }
+        const limit = options?.limit ?? 50
+        return results.slice(-limit)
     }
 
     private expireInactive(): void {

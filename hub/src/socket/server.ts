@@ -39,6 +39,7 @@ export type SocketServerDeps = {
     onSessionAlive?: (payload: { sid: string; time: number; thinking?: boolean; mode?: 'local' | 'remote' }) => void
     onSessionEnd?: (payload: { sid: string; time: number }) => void
     onMachineAlive?: (payload: { machineId: string; time: number }) => void
+    onSessionDisconnect?: (payload: { sessionId: string; reason: string; namespace: string; connectedAt: number }) => void
 }
 
 export function createSocketServer(deps: SocketServerDeps): {
@@ -113,6 +114,7 @@ export function createSocketServer(deps: SocketServerDeps): {
         onSessionAlive: deps.onSessionAlive,
         onSessionEnd: deps.onSessionEnd,
         onMachineAlive: deps.onMachineAlive,
+        onSessionDisconnect: deps.onSessionDisconnect,
         onWebappEvent: deps.onWebappEvent
     }))
 

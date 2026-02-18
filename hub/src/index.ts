@@ -179,7 +179,8 @@ async function main() {
         onWebappEvent: (event: SyncEvent) => syncEngine?.handleRealtimeEvent(event),
         onSessionAlive: (payload) => syncEngine?.handleSessionAlive(payload),
         onSessionEnd: (payload) => syncEngine?.handleSessionEnd(payload),
-        onMachineAlive: (payload) => syncEngine?.handleMachineAlive(payload)
+        onMachineAlive: (payload) => syncEngine?.handleMachineAlive(payload),
+        onSessionDisconnect: (payload) => syncEngine?.handleSessionDisconnect(payload)
     })
 
     syncEngine = new SyncEngine(store, socketServer.io, socketServer.rpcRegistry, sseManager)

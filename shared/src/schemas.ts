@@ -182,6 +182,38 @@ export const SyncEventSchema = z.discriminatedUnion('type', [
             url: z.string()
         })
     }),
+    SessionChangedSchema.extend({
+        type: z.literal('session-disconnected'),
+        data: z.object({
+            reason: z.string(),
+            wasThinking: z.boolean(),
+            wasActive: z.boolean(),
+            lastActiveAt: z.number(),
+            connectionDurationMs: z.number().optional(),
+            lastMessage: z.object({
+                seq: z.number().nullable(),
+                content: z.unknown(),
+                createdAt: z.number()
+            }).optional(),
+            sessionMeta: z.object({
+                path: z.string().optional(),
+                host: z.string().optional(),
+                flavor: z.string().optional()
+            }).optional(),
+            assessment: z.object({
+                shouldReconnect: z.boolean(),
+                reason: z.string(),
+                confidence: z.enum(['high', 'medium', 'low']),
+                assessmentMethod: z.enum(['rule', 'ai'])
+            }).optional(),
+            reconnectResult: z.object({
+                attempted: z.boolean(),
+                success: z.boolean(),
+                newSessionId: z.string().optional(),
+                error: z.string().optional()
+            }).optional()
+        })
+    }),
     SessionEventBaseSchema.extend({
         type: z.literal('connection-changed'),
         data: z.object({

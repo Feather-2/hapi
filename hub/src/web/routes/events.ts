@@ -9,6 +9,18 @@ import type { VisibilityTracker } from '../../visibility/visibilityTracker'
 import type { WebAppEnv } from '../middleware/auth'
 import { requireSession } from './guards'
 
+type SSEDisconnectRecord = {
+    subscriptionId: string
+    namespace: string
+    sessionId: string | null
+    connectedAt: number
+    disconnectedAt: number
+    durationMs: number
+}
+
+const MAX_SSE_DISCONNECT_RECORDS = 100
+const sseDisconnectRecords: SSEDisconnectRecord[] = []
+
 function parseOptionalId(value: string | undefined): string | null {
     if (!value) {
         return null
@@ -78,6 +90,7 @@ export function createEventsRoutes(
         }
 
         return streamSSE(c, async (stream) => {
+            const connectedAt = Date.now()
             manager.subscribe({
                 id: subscriptionId,
                 namespace,
@@ -107,6 +120,26 @@ export function createEventsRoutes(
                 stream.onAbort(done)
             })
 
+            const disconnectedAt = Date.now()
+            const durationMs = disconnectedAt - connectedAt
+
+            const record: SSEDisconnectRecord = {
+                subscriptionId,
+                namespace,
+                sessionId: resolvedSessionId,
+                connectedAt,
+                disconnectedAt,
+                durationMs
+            }
+            sseDisconnectRecords.push(record)
+            if (sseDisconnectRecords.length > MAX_SSE_DISCONNECT_RECORDS) {
+                sseDisconnectRecords.shift()
+            }
+
+            console.log(
+                `[SSE Disconnect] sub=${subscriptionId.slice(0, 8)} session=${resolvedSessionId?.slice(0, 8) ?? 'all'} duration=${Math.round(durationMs / 1000)}s`
+            )
+
             manager.unsubscribe(subscriptionId)
         })
     })
@@ -130,6 +163,16 @@ export function createEventsRoutes(
         }
 
         return c.json({ ok: true })
+    })
+
+    app.get('/diagnostics/sse-disconnects', (c) => {
+        const sessionId = c.req.query('sessionId') ?? undefined
+        const limit = Math.min(Number(c.req.query('limit')) || 50, 100)
+        let results = sseDisconnectRecords
+        if (sessionId) {
+            results = results.filter(r => r.sessionId === sessionId)
+        }
+        return c.json({ disconnects: results.slice(-limit) })
     })
 
     return app
