@@ -234,7 +234,7 @@ export function updateSessionModes(
     smartContinueEnabled?: boolean | undefined
 ): void {
     const sets: string[] = []
-    const params: unknown[] = []
+    const params: (string | number | null)[] = []
     if (permissionMode !== undefined) {
         sets.push('permission_mode = ?')
         params.push(permissionMode || null)

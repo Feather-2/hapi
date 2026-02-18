@@ -182,7 +182,7 @@ export function SessionHeader(props: {
                 onArchive={() => setArchiveOpen(true)}
                 onUnarchive={async () => {
                     const newId = await unarchiveSession()
-                    if (newId && newId !== sessionId) {
+                    if (newId && newId !== session.id) {
                         window.location.href = `/sessions/${newId}`
                     }
                 }}
