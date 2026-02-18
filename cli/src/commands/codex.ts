@@ -12,6 +12,11 @@ export const codexCommand: CommandDefinition = {
         try {
             const { runCodex } = await import('@/codex/runCodex')
 
+            if (process.env.HAPI_SESSION_CWD) {
+                process.chdir(process.env.HAPI_SESSION_CWD)
+                delete process.env.HAPI_SESSION_CWD
+            }
+
             const options: {
                 startedBy?: 'runner' | 'terminal'
                 codexArgs?: string[]

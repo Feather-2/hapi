@@ -10,6 +10,13 @@ export const geminiCommand: CommandDefinition = {
     requiresRuntimeAssets: true,
     run: async ({ commandArgs }) => {
         try {
+            const { runGemini } = await import('@/gemini/runGemini')
+
+            if (process.env.HAPI_SESSION_CWD) {
+                process.chdir(process.env.HAPI_SESSION_CWD)
+                delete process.env.HAPI_SESSION_CWD
+            }
+
             const options: {
                 startedBy?: 'runner' | 'terminal'
                 startingMode?: 'local' | 'remote'
@@ -43,7 +50,6 @@ export const geminiCommand: CommandDefinition = {
             await maybeAutoStartServer()
             await authAndSetupMachineIfNeeded()
 
-            const { runGemini } = await import('@/gemini/runGemini')
             await runGemini(options)
         } catch (error) {
             console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')

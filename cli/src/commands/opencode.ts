@@ -10,6 +10,13 @@ export const opencodeCommand: CommandDefinition = {
     requiresRuntimeAssets: true,
     run: async ({ commandArgs }) => {
         try {
+            const { runOpencode } = await import('@/opencode/runOpencode')
+
+            if (process.env.HAPI_SESSION_CWD) {
+                process.chdir(process.env.HAPI_SESSION_CWD)
+                delete process.env.HAPI_SESSION_CWD
+            }
+
             const options: {
                 startedBy?: 'runner' | 'terminal'
                 startingMode?: 'local' | 'remote'
@@ -43,7 +50,6 @@ export const opencodeCommand: CommandDefinition = {
             await maybeAutoStartServer()
             await authAndSetupMachineIfNeeded()
 
-            const { runOpencode } = await import('@/opencode/runOpencode')
             await runOpencode(options)
         } catch (error) {
             console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
