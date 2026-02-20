@@ -1,8 +1,8 @@
 /**
  * Codex-specific system prompt for local mode.
  *
- * This prompt instructs Codex to call the hapi__change_title function
- * to set appropriate chat session titles.
+ * This prompt instructs Codex to call hapi MCP tools for
+ * session title management and collaboration mode switching.
  */
 
 import { trimIdent } from '@/utils/trimIdent';
@@ -17,6 +17,17 @@ export const TITLE_INSTRUCTION = trimIdent(`
 `);
 
 /**
+ * Mode switch instruction for Codex to call the hapi MCP tool.
+ * Allows AI to semantically drive collaboration mode transitions.
+ */
+export const MODE_SWITCH_INSTRUCTION = trimIdent(`
+    You have access to functions.hapi__switch_mode to switch collaboration modes.
+    When you finish planning and are ready to implement, call functions.hapi__switch_mode with mode "code".
+    When you need to review code, call it with mode "review".
+    When you need to create a plan first, call it with mode "plan".
+`);
+
+/**
  * The system prompt to inject via developer_instructions in local mode.
  */
-export const codexSystemPrompt = TITLE_INSTRUCTION;
+export const codexSystemPrompt = [TITLE_INSTRUCTION, MODE_SWITCH_INSTRUCTION].join('\n\n');

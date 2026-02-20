@@ -150,6 +150,16 @@ export async function runCodex(opts: {
             onModeChange: createModeChangeHandler(session),
             onSessionReady: (instance) => {
                 sessionWrapperRef.current = instance;
+                instance.onSwitchMode = (mode: string) => {
+                    try {
+                        currentCollaborationMode = resolveCollaborationMode(mode);
+                        syncSessionMode();
+                        logger.debug(`[Codex] AI switched collaboration mode to: ${mode}`);
+                        return { success: true };
+                    } catch (error) {
+                        return { success: false, error: String(error) };
+                    }
+                };
                 syncSessionMode();
             }
         });

@@ -65,6 +65,9 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
         this.model = model;
     };
 
+    /** Callback for AI-driven collaboration mode switching via MCP tool */
+    onSwitchMode?: (mode: string) => { success: boolean; error?: string };
+
     recordLocalLaunchFailure = (message: string, exitReason: LocalLaunchExitReason): void => {
         this.localLaunchFailure = { message, exitReason };
     };

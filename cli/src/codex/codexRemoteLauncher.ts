@@ -456,7 +456,10 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             });
         }
 
-        const { server: happyServer, mcpServers } = await buildHapiMcpBridge(session.client);
+        const { server: happyServer, mcpServers } = await buildHapiMcpBridge(
+            session.client,
+            { onSwitchMode: session.onSwitchMode }
+        );
         this.happyServer = happyServer;
 
         this.setupAbortHandlers(session.client.rpcHandlerManager, {

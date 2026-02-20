@@ -1,6 +1,7 @@
 /**
  * HAPI MCP server
  * Provides HAPI CLI specific tools including chat session title management
+ * and collaboration mode switching.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -12,18 +13,26 @@ import { logger } from "@/ui/logger";
 import { ApiSessionClient } from "@/api/apiSession";
 import { randomUUID } from "node:crypto";
 
-export async function startHappyServer(client: ApiSessionClient) {
+export interface HappyServerOptions {
+    client: ApiSessionClient;
+    onSwitchMode?: (mode: string) => { success: boolean; error?: string };
+}
+
+export async function startHappyServer(clientOrOpts: ApiSessionClient | HappyServerOptions) {
+    const opts: HappyServerOptions = 'client' in clientOrOpts
+        ? clientOrOpts as HappyServerOptions
+        : { client: clientOrOpts as ApiSessionClient };
+    const { client, onSwitchMode } = opts;
+
     // Handler that sends title updates via the client
     const handler = async (title: string) => {
         logger.debug('[hapiMCP] Changing title to:', title);
         try {
-            // Send title as a summary message, similar to title generator
             client.sendClaudeSessionMessage({
                 type: 'summary',
                 summary: title,
                 leafUuid: randomUUID()
             });
-            
             return { success: true };
         } catch (error) {
             return { success: false, error: String(error) };
@@ -51,7 +60,7 @@ export async function startHappyServer(client: ApiSessionClient) {
     }, async (args: { title: string }) => {
         const response = await handler(args.title);
         logger.debug('[hapiMCP] Response:', response);
-        
+
         if (response.success) {
             return {
                 content: [
@@ -73,6 +82,37 @@ export async function startHappyServer(client: ApiSessionClient) {
                 isError: true,
             };
         }
+    });
+
+    // switch_mode tool: allows AI to request collaboration mode transitions
+    const switchModeInputSchema: z.ZodTypeAny = z.object({
+        mode: z.enum(['code', 'plan', 'review']).describe('The collaboration mode to switch to'),
+        reason: z.string().optional().describe('Why the mode switch is needed'),
+    });
+
+    mcp.registerTool<any, any>('switch_mode', {
+        description: 'Switch the collaboration mode of the current session. Call this when you have finished planning and want to switch to code mode for implementation, or when you need to switch to plan or review mode.',
+        title: 'Switch Collaboration Mode',
+        inputSchema: switchModeInputSchema,
+    }, async (args: { mode: string; reason?: string }) => {
+        logger.debug(`[hapiMCP] switch_mode requested: ${args.mode} (reason: ${args.reason || 'none'})`);
+        if (!onSwitchMode) {
+            return {
+                content: [{ type: 'text' as const, text: 'Mode switching is not available in this session.' }],
+                isError: true,
+            };
+        }
+        const result = onSwitchMode(args.mode);
+        if (result.success) {
+            return {
+                content: [{ type: 'text' as const, text: `Switched collaboration mode to: ${args.mode}` }],
+                isError: false,
+            };
+        }
+        return {
+            content: [{ type: 'text' as const, text: `Failed to switch mode: ${result.error || 'Unknown error'}` }],
+            isError: true,
+        };
     });
 
     const transport = new StreamableHTTPServerTransport({
@@ -106,7 +146,7 @@ export async function startHappyServer(client: ApiSessionClient) {
 
     return {
         url: baseUrl.toString(),
-        toolNames: ['change_title'],
+        toolNames: ['change_title', 'switch_mode'],
         stop: () => {
             logger.debug('[hapiMCP] Stopping server');
             mcp.close();
