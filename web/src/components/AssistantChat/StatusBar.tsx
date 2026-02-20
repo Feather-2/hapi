@@ -1,7 +1,7 @@
-import { getPermissionModeLabel, getPermissionModeTone, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
+import { getPermissionModeLabel, getPermissionModeTone, isPermissionModeAllowedForFlavor, COLLABORATION_MODE_LABELS, COLLABORATION_MODE_TONES } from '@hapi/protocol'
 import type { PermissionModeTone } from '@hapi/protocol'
 import { useMemo } from 'react'
-import type { AgentState, ModelMode, PermissionMode } from '@/types/api'
+import type { AgentState, CodexCollaborationMode, ModelMode, PermissionMode } from '@/types/api'
 import type { ConversationStatus } from '@/realtime/types'
 import { getContextBudgetTokens } from '@/chat/modelConfig'
 import { useTranslation } from '@/lib/use-translation'
@@ -108,6 +108,7 @@ export function StatusBar(props: {
     contextSize?: number
     modelMode?: ModelMode
     permissionMode?: PermissionMode
+    collaborationMode?: CodexCollaborationMode
     agentFlavor?: string | null
     voiceStatus?: ConversationStatus
 }) {
@@ -138,6 +139,12 @@ export function StatusBar(props: {
     const permissionModeTone = displayPermissionMode ? getPermissionModeTone(displayPermissionMode) : null
     const permissionModeColor = permissionModeTone ? PERMISSION_TONE_CLASSES[permissionModeTone] : 'text-[var(--app-hint)]'
 
+    const collaborationMode = props.collaborationMode
+    const displayCollaborationMode = collaborationMode && collaborationMode !== 'code' ? collaborationMode : null
+    const collaborationModeLabel = displayCollaborationMode ? COLLABORATION_MODE_LABELS[displayCollaborationMode] : null
+    const collaborationModeTone = displayCollaborationMode ? COLLABORATION_MODE_TONES[displayCollaborationMode] : null
+    const collaborationModeColor = collaborationModeTone ? PERMISSION_TONE_CLASSES[collaborationModeTone] : 'text-[var(--app-hint)]'
+
     return (
         <div className="flex items-center justify-between px-2 pb-1">
             <div className="flex items-baseline gap-3">
@@ -156,10 +163,19 @@ export function StatusBar(props: {
                 ) : null}
             </div>
 
-            {displayPermissionMode ? (
-                <span className={`text-xs ${permissionModeColor}`}>
-                    {permissionModeLabel}
-                </span>
+            {(displayPermissionMode || displayCollaborationMode) ? (
+                <div className="flex items-center gap-2">
+                    {displayCollaborationMode ? (
+                        <span className={`text-xs ${collaborationModeColor}`}>
+                            {collaborationModeLabel}
+                        </span>
+                    ) : null}
+                    {displayPermissionMode ? (
+                        <span className={`text-xs ${permissionModeColor}`}>
+                            {permissionModeLabel}
+                        </span>
+                    ) : null}
+                </div>
             ) : null}
         </div>
     )

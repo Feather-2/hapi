@@ -292,6 +292,36 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
     })
 
+    app.post('/sessions/:id/collaboration-mode', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine, { requireActive: true })
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        if (!body || typeof body !== 'object' || !('mode' in body) || typeof body.mode !== 'string') {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
+        if (flavor !== 'codex') {
+            return c.json({ error: 'Collaboration mode only supported for codex sessions' }, 400)
+        }
+
+        try {
+            await engine.applySessionConfig(sessionResult.sessionId, { collaborationMode: body.mode })
+            return c.json({ ok: true })
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to apply collaboration mode'
+            return c.json({ error: message }, 409)
+        }
+    })
+
     app.post('/sessions/:id/model', async (c) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {

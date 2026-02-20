@@ -218,7 +218,7 @@ export class SessionCache {
         }
     }
 
-    applySessionConfig(sessionId: string, config: { permissionMode?: PermissionMode; modelMode?: ModelMode; smartContinueEnabled?: boolean }): void {
+    applySessionConfig(sessionId: string, config: { permissionMode?: PermissionMode; modelMode?: ModelMode; collaborationMode?: Session['collaborationMode']; smartContinueEnabled?: boolean }): void {
         const session = this.sessions.get(sessionId) ?? this.refreshSession(sessionId)
         if (!session) {
             return
@@ -230,11 +230,14 @@ export class SessionCache {
         if (config.modelMode !== undefined) {
             session.modelMode = config.modelMode
         }
+        if (config.collaborationMode !== undefined) {
+            session.collaborationMode = config.collaborationMode
+        }
         if (config.smartContinueEnabled !== undefined) {
             session.smartContinueEnabled = config.smartContinueEnabled
         }
 
-        this.store.sessions.updateSessionModes(sessionId, config.permissionMode, config.modelMode, config.smartContinueEnabled)
+        this.store.sessions.updateSessionModes(sessionId, config.permissionMode, config.modelMode, config.smartContinueEnabled, config.collaborationMode)
         this.publisher.emit({ type: 'session-updated', sessionId, data: session })
     }
 

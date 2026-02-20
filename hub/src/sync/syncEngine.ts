@@ -515,6 +515,7 @@ export class SyncEngine {
         config: {
             permissionMode?: PermissionMode
             modelMode?: ModelMode
+            collaborationMode?: string
             smartContinueEnabled?: boolean
         }
     ): Promise<void> {
@@ -523,17 +524,18 @@ export class SyncEngine {
             this.sessionCache.applySessionConfig(sessionId, { smartContinueEnabled: config.smartContinueEnabled })
         }
 
-        // permissionMode/modelMode require RPC to CLI
-        if (config.permissionMode !== undefined || config.modelMode !== undefined) {
-            const rpcConfig: { permissionMode?: PermissionMode; modelMode?: ModelMode } = {}
+        // permissionMode/modelMode/collaborationMode require RPC to CLI
+        if (config.permissionMode !== undefined || config.modelMode !== undefined || config.collaborationMode !== undefined) {
+            const rpcConfig: { permissionMode?: PermissionMode; modelMode?: ModelMode; collaborationMode?: string } = {}
             if (config.permissionMode !== undefined) rpcConfig.permissionMode = config.permissionMode
             if (config.modelMode !== undefined) rpcConfig.modelMode = config.modelMode
+            if (config.collaborationMode !== undefined) rpcConfig.collaborationMode = config.collaborationMode
 
             const result = await this.rpcGateway.requestSessionConfig(sessionId, rpcConfig)
             if (!result || typeof result !== 'object') {
                 throw new Error('Invalid response from session config RPC')
             }
-            const obj = result as { applied?: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode'] } }
+            const obj = result as { applied?: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode']; collaborationMode?: Session['collaborationMode'] } }
             const applied = obj.applied
             if (!applied || typeof applied !== 'object') {
                 throw new Error('Missing applied session config')

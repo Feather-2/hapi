@@ -249,7 +249,19 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 }
             }
 
-            if (msgType === 'agent_message') {
+            if (msgType === 'plan_delta') {
+                // Streamed incrementally; wait for plan_complete
+            } else if (msgType === 'plan_complete') {
+                const text = asString(msg.text);
+                if (text) {
+                    messageBuffer.addMessage(text, 'assistant');
+                    session.sendCodexMessage({
+                        type: 'message',
+                        message: text,
+                        id: randomUUID()
+                    });
+                }
+            } else if (msgType === 'agent_message') {
                 const message = asString(msg.message);
                 if (message) {
                     messageBuffer.addMessage(message, 'assistant');
@@ -482,6 +494,9 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 clientInfo: {
                     name: 'hapi-codex-client',
                     version: '1.0.0'
+                },
+                capabilities: {
+                    experimentalApi: true
                 }
             });
         } else if (mcpClient) {
@@ -642,7 +657,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     syncSessionId();
                 }
             } catch (error) {
-                logger.warn('Error in codex session:', error);
+                logger.warn('Error in codex session:', error instanceof Error ? `${error.name}: ${error.message}` : error);
                 const isAbortError = error instanceof Error && error.name === 'AbortError';
                 if (useAppServer) {
                     turnInFlight = false;

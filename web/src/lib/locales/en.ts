@@ -257,6 +257,7 @@ export default {
   'misc.noMachines': 'No machines available',
   'misc.machine': 'Machine',
   'misc.permissionMode': 'Permission Mode',
+  'misc.collaborationMode': 'Collaboration Mode',
   'misc.model': 'Model',
   'misc.loading': 'Loading…',
   'misc.loadOlder': 'Load older',

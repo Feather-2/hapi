@@ -1,4 +1,4 @@
-import { getPermissionModeOptionsForFlavor, MODEL_MODE_LABELS, MODEL_MODES } from '@hapi/protocol'
+import { getPermissionModeOptionsForFlavor, getCollaborationModeOptionsForFlavor, MODEL_MODE_LABELS, MODEL_MODES } from '@hapi/protocol'
 import { ComposerPrimitive, useAssistantApi, useAssistantState } from '@assistant-ui/react'
 import {
     type ChangeEvent as ReactChangeEvent,
@@ -12,7 +12,7 @@ import {
     useRef,
     useState
 } from 'react'
-import type { AgentState, ModelMode, PermissionMode } from '@/types/api'
+import type { AgentState, CodexCollaborationMode, ModelMode, PermissionMode } from '@/types/api'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import type { ConversationStatus } from '@/realtime/types'
 import { useActiveWord } from '@/hooks/useActiveWord'
@@ -39,6 +39,7 @@ const defaultSuggestionHandler = async (): Promise<Suggestion[]> => []
 export function HappyComposer(props: {
     disabled?: boolean
     permissionMode?: PermissionMode
+    collaborationMode?: CodexCollaborationMode
     modelMode?: ModelMode
     active?: boolean
     allowSendWhenInactive?: boolean
@@ -48,6 +49,7 @@ export function HappyComposer(props: {
     controlledByUser?: boolean
     agentFlavor?: string | null
     onPermissionModeChange?: (mode: PermissionMode) => void
+    onCollaborationModeChange?: (mode: CodexCollaborationMode) => void
     onModelModeChange?: (mode: ModelMode) => void
     onSwitchToRemote?: () => void
     onTerminal?: () => void
@@ -75,6 +77,7 @@ export function HappyComposer(props: {
         controlledByUser = false,
         agentFlavor,
         onPermissionModeChange,
+        onCollaborationModeChange,
         onModelModeChange,
         onSwitchToRemote,
         onTerminal,
@@ -92,6 +95,7 @@ export function HappyComposer(props: {
     // Use ?? so missing values fall back to default (destructuring defaults only handle undefined)
     const permissionMode = rawPermissionMode ?? 'default'
     const modelMode = rawModelMode ?? 'default'
+    const collaborationMode = props.collaborationMode ?? 'code'
 
     const api = useAssistantApi()
     const composerText = useAssistantState(({ composer }) => composer.text)
@@ -256,6 +260,11 @@ export function HappyComposer(props: {
         [permissionModeOptions]
     )
 
+    const collaborationModeOptions = useMemo(
+        () => getCollaborationModeOptionsForFlavor(agentFlavor),
+        [agentFlavor]
+    )
+
     const handleKeyDown = useCallback((e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
         const key = e.key
 
@@ -385,6 +394,13 @@ export function HappyComposer(props: {
         haptic('light')
     }, [onPermissionModeChange, controlsDisabled, haptic])
 
+    const handleCollaborationModeChange = useCallback((mode: CodexCollaborationMode) => {
+        if (!onCollaborationModeChange || controlsDisabled) return
+        onCollaborationModeChange(mode)
+        setShowSettings(false)
+        haptic('light')
+    }, [onCollaborationModeChange, controlsDisabled, haptic])
+
     const handleModelChange = useCallback((mode: ModelMode) => {
         if (!onModelModeChange || controlsDisabled) return
         onModelModeChange(mode)
@@ -393,8 +409,9 @@ export function HappyComposer(props: {
     }, [onModelModeChange, controlsDisabled, haptic])
 
     const showPermissionSettings = Boolean(onPermissionModeChange && permissionModeOptions.length > 0)
+    const showCollaborationSettings = Boolean(onCollaborationModeChange && collaborationModeOptions.length > 0)
     const showModelSettings = Boolean(onModelModeChange && !isCodexFamilyFlavor(agentFlavor))
-    const showSettingsButton = Boolean(showPermissionSettings || showModelSettings)
+    const showSettingsButton = Boolean(showPermissionSettings || showCollaborationSettings || showModelSettings)
     const showAbortButton = true
     const voiceEnabled = Boolean(onVoiceToggle)
 
@@ -403,7 +420,7 @@ export function HappyComposer(props: {
     }, [api])
 
     const overlays = useMemo(() => {
-        if (showSettings && (showPermissionSettings || showModelSettings)) {
+        if (showSettings && (showPermissionSettings || showCollaborationSettings || showModelSettings)) {
             return (
                 <div className="absolute bottom-[100%] mb-2 w-full">
                     <FloatingOverlay maxHeight={320}>
@@ -444,7 +461,48 @@ export function HappyComposer(props: {
                             </div>
                         ) : null}
 
-                        {showPermissionSettings && showModelSettings ? (
+                        {showPermissionSettings && showCollaborationSettings ? (
+                            <div className="mx-3 h-px bg-[var(--app-divider)]" />
+                        ) : null}
+
+                        {showCollaborationSettings ? (
+                            <div className="py-2">
+                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
+                                    {t('misc.collaborationMode')}
+                                </div>
+                                {collaborationModeOptions.map((option) => (
+                                    <button
+                                        key={option.mode}
+                                        type="button"
+                                        disabled={controlsDisabled}
+                                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                                            controlsDisabled
+                                                ? 'cursor-not-allowed opacity-50'
+                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
+                                        }`}
+                                        onClick={() => handleCollaborationModeChange(option.mode)}
+                                        onMouseDown={(e) => e.preventDefault()}
+                                    >
+                                        <div
+                                            className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                                                collaborationMode === option.mode
+                                                    ? 'border-[var(--app-link)]'
+                                                    : 'border-[var(--app-hint)]'
+                                            }`}
+                                        >
+                                            {collaborationMode === option.mode && (
+                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
+                                            )}
+                                        </div>
+                                        <span className={collaborationMode === option.mode ? 'text-[var(--app-link)]' : ''}>
+                                            {option.label}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : null}
+
+                        {(showPermissionSettings || showCollaborationSettings) && showModelSettings ? (
                             <div className="mx-3 h-px bg-[var(--app-divider)]" />
                         ) : null}
 
@@ -507,14 +565,18 @@ export function HappyComposer(props: {
     }, [
         showSettings,
         showPermissionSettings,
+        showCollaborationSettings,
         showModelSettings,
         suggestions,
         selectedIndex,
         controlsDisabled,
         permissionMode,
+        collaborationMode,
         modelMode,
         permissionModeOptions,
+        collaborationModeOptions,
         handlePermissionChange,
+        handleCollaborationModeChange,
         handleModelChange,
         handleSuggestionSelect
     ])
@@ -532,6 +594,7 @@ export function HappyComposer(props: {
                         contextSize={contextSize}
                         modelMode={modelMode}
                         permissionMode={permissionMode}
+                        collaborationMode={collaborationMode as CodexCollaborationMode}
                         agentFlavor={agentFlavor}
                         voiceStatus={voiceStatus}
                     />

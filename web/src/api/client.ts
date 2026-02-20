@@ -321,6 +321,13 @@ export class ApiClient {
         })
     }
 
+    async setCollaborationMode(sessionId: string, mode: string): Promise<void> {
+        await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/collaboration-mode`, {
+            method: 'POST',
+            body: JSON.stringify({ mode })
+        })
+    }
+
     async setModelMode(sessionId: string, model: ModelMode): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/model`, {
             method: 'POST',

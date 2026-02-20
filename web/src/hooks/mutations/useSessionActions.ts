@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { isPermissionModeAllowedForFlavor } from '@hapi/protocol'
 import type { ApiClient } from '@/api/client'
-import type { ModelMode, PermissionMode } from '@/types/api'
+import type { CodexCollaborationMode, ModelMode, PermissionMode } from '@/types/api'
 import { queryKeys } from '@/lib/query-keys'
 import { clearMessageWindow } from '@/lib/message-window-store'
 import { isKnownFlavor } from '@/lib/agentFlavorUtils'
@@ -17,6 +17,7 @@ export function useSessionActions(
     switchSession: () => Promise<void>
     setPermissionMode: (mode: PermissionMode) => Promise<void>
     setModelMode: (mode: ModelMode) => Promise<void>
+    setCollaborationMode: (mode: CodexCollaborationMode) => Promise<void>
     setSmartContinue: (enabled: boolean) => Promise<void>
     renameSession: (name: string) => Promise<void>
     deleteSession: () => Promise<void>
@@ -94,6 +95,16 @@ export function useSessionActions(
         onSuccess: () => void invalidateSession(),
     })
 
+    const collaborationMutation = useMutation({
+        mutationFn: async (mode: CodexCollaborationMode) => {
+            if (!api || !sessionId) {
+                throw new Error('Session unavailable')
+            }
+            await api.setCollaborationMode(sessionId, mode)
+        },
+        onSuccess: () => void invalidateSession(),
+    })
+
     const smartContinueMutation = useMutation({
         mutationFn: async (enabled: boolean) => {
             if (!api || !sessionId) {
@@ -136,6 +147,7 @@ export function useSessionActions(
         switchSession: switchMutation.mutateAsync,
         setPermissionMode: permissionMutation.mutateAsync,
         setModelMode: modelMutation.mutateAsync,
+        setCollaborationMode: collaborationMutation.mutateAsync,
         setSmartContinue: smartContinueMutation.mutateAsync,
         renameSession: renameMutation.mutateAsync,
         deleteSession: deleteMutation.mutateAsync,
@@ -145,6 +157,7 @@ export function useSessionActions(
             || switchMutation.isPending
             || permissionMutation.isPending
             || modelMutation.isPending
+            || collaborationMutation.isPending
             || smartContinueMutation.isPending
             || renameMutation.isPending
             || deleteMutation.isPending,

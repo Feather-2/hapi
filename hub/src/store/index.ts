@@ -22,7 +22,7 @@ export { PushStore } from './pushStore'
 export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
 
-const SCHEMA_VERSION: number = 5
+const SCHEMA_VERSION: number = 6
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -122,6 +122,12 @@ export class Store {
             return
         }
 
+        if (currentVersion === 5 && SCHEMA_VERSION === 6) {
+            this.migrateFromV5ToV6()
+            this.setUserVersion(SCHEMA_VERSION)
+            return
+        }
+
         if (currentVersion !== SCHEMA_VERSION) {
             throw this.buildSchemaMismatchError(currentVersion)
         }
@@ -147,6 +153,7 @@ export class Store {
                 permission_mode TEXT,
                 model_mode TEXT,
                 smart_continue_enabled INTEGER,
+                collaboration_mode TEXT,
                 active INTEGER DEFAULT 0,
                 active_at INTEGER,
                 seq INTEGER DEFAULT 0
@@ -317,6 +324,16 @@ export class Store {
         )
         if (!columns.has('smart_continue_enabled')) {
             this.db.exec('ALTER TABLE sessions ADD COLUMN smart_continue_enabled INTEGER')
+        }
+    }
+
+    private migrateFromV5ToV6(): void {
+        const columns = new Set(
+            (this.db.prepare('PRAGMA table_info(sessions)').all() as Array<{ name: string }>)
+                .map(r => r.name)
+        )
+        if (!columns.has('collaboration_mode')) {
+            this.db.exec('ALTER TABLE sessions ADD COLUMN collaboration_mode TEXT')
         }
     }
 

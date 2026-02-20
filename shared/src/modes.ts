@@ -103,3 +103,42 @@ export function getModelModesForFlavor(flavor?: string | null): readonly ModelMo
 export function isModelModeAllowedForFlavor(mode: ModelMode, flavor?: string | null): boolean {
     return getModelModesForFlavor(flavor).includes(mode)
 }
+
+// Collaboration modes (orthogonal to permission modes)
+export const CODEX_COLLABORATION_MODES = ['code', 'plan', 'review'] as const
+export type CodexCollaborationMode = typeof CODEX_COLLABORATION_MODES[number]
+
+export const COLLABORATION_MODE_LABELS: Record<CodexCollaborationMode, string> = {
+    code: 'Code',
+    plan: 'Plan',
+    review: 'Review'
+}
+
+export type CollaborationModeTone = 'neutral' | 'info' | 'warning'
+
+export const COLLABORATION_MODE_TONES: Record<CodexCollaborationMode, CollaborationModeTone> = {
+    code: 'neutral',
+    plan: 'info',
+    review: 'warning'
+}
+
+export type CollaborationModeOption = {
+    mode: CodexCollaborationMode
+    label: string
+    tone: CollaborationModeTone
+}
+
+export function getCollaborationModesForFlavor(flavor?: string | null): readonly CodexCollaborationMode[] {
+    if (flavor === 'codex') {
+        return CODEX_COLLABORATION_MODES
+    }
+    return []
+}
+
+export function getCollaborationModeOptionsForFlavor(flavor?: string | null): CollaborationModeOption[] {
+    return getCollaborationModesForFlavor(flavor).map((mode) => ({
+        mode,
+        label: COLLABORATION_MODE_LABELS[mode],
+        tone: COLLABORATION_MODE_TONES[mode]
+    }))
+}

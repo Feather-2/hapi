@@ -1,8 +1,9 @@
 import { z } from 'zod'
-import { MODEL_MODES, PERMISSION_MODES } from './modes'
+import { MODEL_MODES, PERMISSION_MODES, CODEX_COLLABORATION_MODES } from './modes'
 
 export const PermissionModeSchema = z.enum(PERMISSION_MODES)
 export const ModelModeSchema = z.enum(MODEL_MODES)
+export const CollaborationModeSchema = z.enum(CODEX_COLLABORATION_MODES)
 
 const MetadataSummarySchema = z.object({
     text: z.string(),
@@ -135,6 +136,7 @@ export const SessionSchema = z.object({
     todos: TodosSchema.optional(),
     permissionMode: PermissionModeSchema.optional(),
     modelMode: ModelModeSchema.optional(),
+    collaborationMode: CollaborationModeSchema.optional(),
     smartContinueEnabled: z.boolean().optional()
 })
 

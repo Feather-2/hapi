@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
-import type { AttachmentMetadata, DecryptedMessage, ModelMode, PermissionMode, Session } from '@/types/api'
+import type { AttachmentMetadata, CodexCollaborationMode, DecryptedMessage, ModelMode, PermissionMode, Session } from '@/types/api'
 import type { ChatBlock, NormalizedMessage } from '@/chat/types'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { normalizeDecryptedMessage } from '@/chat/normalize'
@@ -45,7 +45,7 @@ export function SessionChat(props: {
     const blocksByIdRef = useRef<Map<string, ChatBlock>>(new Map())
     const [forceScrollToken, setForceScrollToken] = useState(0)
     const agentFlavor = props.session.metadata?.flavor ?? null
-    const { abortSession, switchSession, setPermissionMode, setModelMode, setSmartContinue } = useSessionActions(
+    const { abortSession, switchSession, setPermissionMode, setModelMode, setCollaborationMode, setSmartContinue } = useSessionActions(
         props.api,
         props.session.id,
         agentFlavor
@@ -216,6 +216,18 @@ export function SessionChat(props: {
         }
     }, [setModelMode, props.onRefresh, haptic])
 
+    // Collaboration mode change handler
+    const handleCollaborationModeChange = useCallback(async (mode: CodexCollaborationMode) => {
+        try {
+            await setCollaborationMode(mode)
+            haptic.notification('success')
+            props.onRefresh()
+        } catch (e) {
+            haptic.notification('error')
+            console.error('Failed to set collaboration mode:', e)
+        }
+    }, [setCollaborationMode, props.onRefresh, haptic])
+
     // Smart continue toggle handler
     const handleSmartContinueToggle = useCallback(async () => {
         try {
@@ -322,6 +334,7 @@ export function SessionChat(props: {
                     <HappyComposer
                         disabled={props.isSending}
                         permissionMode={props.session.permissionMode}
+                        collaborationMode={props.session.collaborationMode as CodexCollaborationMode | undefined}
                         modelMode={props.session.modelMode}
                         agentFlavor={agentFlavor}
                         active={props.session.active}
@@ -331,6 +344,7 @@ export function SessionChat(props: {
                         contextSize={reduced.latestUsage?.contextSize}
                         controlledByUser={props.session.agentState?.controlledByUser === true}
                         onPermissionModeChange={handlePermissionModeChange}
+                        onCollaborationModeChange={handleCollaborationModeChange}
                         onModelModeChange={handleModelModeChange}
                         onSwitchToRemote={handleSwitchToRemote}
                         onTerminal={props.session.active ? handleViewTerminal : undefined}

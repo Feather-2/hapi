@@ -80,6 +80,7 @@ export class AppServerEventConverter {
     private readonly agentMessageBuffers = new Map<string, string>();
     private readonly reasoningBuffers = new Map<string, string>();
     private readonly commandOutputBuffers = new Map<string, string>();
+    private readonly planBuffers = new Map<string, string>();
     private readonly commandMeta = new Map<string, Record<string, unknown>>();
     private readonly fileChangeMeta = new Map<string, Record<string, unknown>>();
 
@@ -148,6 +149,19 @@ export class AppServerEventConverter {
             return events;
         }
 
+        if (method === 'item/plan/delta') {
+            const itemId = extractItemId(paramsRecord);
+            const delta = asString(paramsRecord.delta ?? paramsRecord.text);
+            if (itemId && delta) {
+                const prev = this.planBuffers.get(itemId) ?? '';
+                this.planBuffers.set(itemId, prev + delta);
+            }
+            if (delta) {
+                events.push({ type: 'plan_delta', delta });
+            }
+            return events;
+        }
+
         if (method === 'item/agentMessage/delta') {
             const itemId = extractItemId(paramsRecord);
             const delta = asString(paramsRecord.delta ?? paramsRecord.text ?? paramsRecord.message);
@@ -192,6 +206,17 @@ export class AppServerEventConverter {
             const itemId = extractItemId(paramsRecord) ?? asString(item.id ?? item.itemId ?? item.item_id);
 
             if (!itemType || !itemId) {
+                return events;
+            }
+
+            if (itemType === 'plan') {
+                if (method === 'item/completed') {
+                    const text = asString(item.text ?? item.content) ?? this.planBuffers.get(itemId);
+                    if (text) {
+                        events.push({ type: 'plan_complete', text });
+                    }
+                    this.planBuffers.delete(itemId);
+                }
                 return events;
             }
 
@@ -307,6 +332,7 @@ export class AppServerEventConverter {
         this.agentMessageBuffers.clear();
         this.reasoningBuffers.clear();
         this.commandOutputBuffers.clear();
+        this.planBuffers.clear();
         this.commandMeta.clear();
         this.fileChangeMeta.clear();
     }
