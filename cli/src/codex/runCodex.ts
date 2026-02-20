@@ -121,7 +121,7 @@ export async function runCodex(opts: {
         if (!payload || typeof payload !== 'object') {
             throw new Error('Invalid session config payload');
         }
-        const config = payload as { permissionMode?: unknown; collaborationMode?: unknown };
+        const config = payload as { permissionMode?: unknown; collaborationMode?: unknown; smartContinueEnabled?: unknown };
 
         if (config.permissionMode !== undefined) {
             currentPermissionMode = resolvePermissionMode(config.permissionMode);
@@ -131,8 +131,12 @@ export async function runCodex(opts: {
             currentCollaborationMode = resolveCollaborationMode(config.collaborationMode);
         }
 
+        if (config.smartContinueEnabled !== undefined && typeof config.smartContinueEnabled === 'boolean') {
+            sessionWrapperRef.current?.setSmartContinueEnabled(config.smartContinueEnabled);
+        }
+
         syncSessionMode();
-        return { applied: { permissionMode: currentPermissionMode, collaborationMode: currentCollaborationMode } };
+        return { applied: { permissionMode: currentPermissionMode, collaborationMode: currentCollaborationMode, smartContinueEnabled: sessionWrapperRef.current?.smartContinueEnabled } };
     });
 
     try {

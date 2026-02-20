@@ -161,7 +161,7 @@ export async function claudeRemote(opts: {
     const MAX_AUTO_CONTINUE = 3;
     let smartContinueCount = 0;
     const recentAssistantTexts: string[] = [];
-    const smartContinueConfig = opts.smartContinueEnabled !== false ? loadCheckpointConfig(opts.path) : null;
+    const smartContinueConfig = opts.smartContinueEnabled === true ? loadCheckpointConfig(opts.path) : null;
     if (smartContinueConfig?.enabled) {
         logger.debug('[claudeRemote] Checkpoint mode detected, smart auto-continue enabled');
     }
@@ -219,7 +219,7 @@ export async function claudeRemote(opts: {
                 // it likely stopped prematurely due to prompt conflicts.
                 // Skip if model spent significant time/cost (indicates real reasoning work).
                 const hasSubstantialWork = resultMsg.duration_ms > 10_000 || resultMsg.total_cost_usd > 0.01 || recentAssistantTexts.length > 0;
-                if (opts.smartContinueEnabled !== false && resultMsg.subtype === 'success' && resultMsg.num_turns <= 1 && !isCompactCommand && autoContinueCount === 0 && !hasSubstantialWork) {
+                if (opts.smartContinueEnabled === true && resultMsg.subtype === 'success' && resultMsg.num_turns <= 1 && !isCompactCommand && autoContinueCount === 0 && !hasSubstantialWork) {
                     autoContinueCount++;
                     logger.debug(`[claudeRemote] Suspected premature stop (num_turns <= 1), auto-continuing (${autoContinueCount}/${MAX_AUTO_CONTINUE})`);
                     opts.onMessage({

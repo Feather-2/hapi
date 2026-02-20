@@ -65,6 +65,12 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
         this.model = model;
     };
 
+    smartContinueEnabled?: boolean;
+
+    setSmartContinueEnabled = (enabled: boolean): void => {
+        this.smartContinueEnabled = enabled;
+    };
+
     /** Callback for AI-driven collaboration mode switching via MCP tool */
     onSwitchMode?: (mode: string) => { success: boolean; error?: string };
 

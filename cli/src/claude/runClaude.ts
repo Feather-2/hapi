@@ -310,7 +310,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         }
 
         syncSessionModes();
-        return { applied: { permissionMode: currentPermissionMode, modelMode: currentModelMode } };
+        return { applied: { permissionMode: currentPermissionMode, modelMode: currentModelMode, smartContinueEnabled: currentSessionRef.current?.smartContinueEnabled } };
     });
 
     let loopError: unknown = null;
