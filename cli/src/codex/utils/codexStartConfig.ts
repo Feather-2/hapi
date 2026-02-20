@@ -31,7 +31,7 @@ export function buildCodexStartConfig(args: {
     message: string;
     mode: EnhancedMode;
     first: boolean;
-    mcpServers: Record<string, { command: string; args: string[] }>;
+    mcpServers: Record<string, { command: string; args: string[]; cwd?: string }>;
     cliOverrides?: CodexCliOverrides;
     developerInstructions?: string;
 }): CodexSessionConfig {

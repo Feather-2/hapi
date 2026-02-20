@@ -63,10 +63,14 @@ function buildMcpServerConfig(mcpServers: McpServersConfig): Record<string, unkn
     const config: Record<string, unknown> = {};
 
     for (const [name, server] of Object.entries(mcpServers)) {
-        config[`mcp_servers.${name}`] = {
+        const entry: Record<string, unknown> = {
             command: server.command,
             args: server.args
         };
+        if (server.cwd) {
+            entry.cwd = server.cwd;
+        }
+        config[`mcp_servers.${name}`] = entry;
     }
 
     return config;
