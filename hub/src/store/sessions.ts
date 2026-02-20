@@ -23,6 +23,7 @@ type DbSessionRow = {
     seq: number
     permission_mode: string | null
     model_mode: string | null
+    model: string | null
     collaboration_mode: string | null
     smart_continue_enabled: number | null
 }
@@ -46,6 +47,7 @@ function toStoredSession(row: DbSessionRow): StoredSession {
         seq: row.seq,
         permissionMode: row.permission_mode,
         modelMode: row.model_mode,
+        model: row.model,
         collaborationMode: row.collaboration_mode,
         smartContinueEnabled: row.smart_continue_enabled === 1 ? true : row.smart_continue_enabled === 0 ? false : null
     }
@@ -234,7 +236,8 @@ export function updateSessionModes(
     permissionMode: string | undefined,
     modelMode: string | undefined,
     smartContinueEnabled?: boolean | undefined,
-    collaborationMode?: string | undefined
+    collaborationMode?: string | undefined,
+    model?: string | undefined
 ): void {
     const sets: string[] = []
     const params: (string | number | null)[] = []
@@ -245,6 +248,10 @@ export function updateSessionModes(
     if (modelMode !== undefined) {
         sets.push('model_mode = ?')
         params.push(modelMode || null)
+    }
+    if (model !== undefined) {
+        sets.push('model = ?')
+        params.push(model || null)
     }
     if (smartContinueEnabled !== undefined) {
         sets.push('smart_continue_enabled = ?')

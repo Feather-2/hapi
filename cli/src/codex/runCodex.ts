@@ -68,6 +68,9 @@ export async function runCodex(opts: {
             return;
         }
         sessionInstance.setPermissionMode(currentPermissionMode);
+        if (currentModel) {
+            sessionInstance.setModel(currentModel);
+        }
         logger.debug(`[Codex] Synced session permission mode for keepalive: ${currentPermissionMode}`);
     };
 

@@ -61,6 +61,10 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
         this.permissionMode = mode;
     };
 
+    setModel = (model: string): void => {
+        this.model = model;
+    };
+
     recordLocalLaunchFailure = (message: string, exitReason: LocalLaunchExitReason): void => {
         this.localLaunchFailure = { message, exitReason };
     };

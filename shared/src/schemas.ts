@@ -136,6 +136,7 @@ export const SessionSchema = z.object({
     todos: TodosSchema.optional(),
     permissionMode: PermissionModeSchema.optional(),
     modelMode: ModelModeSchema.optional(),
+    model: z.string().optional(),
     collaborationMode: CollaborationModeSchema.optional(),
     smartContinueEnabled: z.boolean().optional()
 })

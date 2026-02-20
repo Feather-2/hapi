@@ -141,6 +141,7 @@ export interface ClientToServerEvents {
         permissionMode?: PermissionMode
         collaborationMode?: string
         modelMode?: ModelMode
+        model?: string
     }) => void
     'session-end': (data: { sid: string; time: number }) => void
     'update-metadata': (data: { sid: string; expectedVersion: number; metadata: unknown }, cb: (answer: {

@@ -121,6 +121,8 @@ export class SessionCache {
             todos,
             permissionMode: existing?.permissionMode ?? (stored.permissionMode as PermissionMode | undefined) ?? undefined,
             modelMode: existing?.modelMode ?? (stored.modelMode as ModelMode | undefined) ?? undefined,
+            model: existing?.model ?? (stored.model as string | undefined) ?? undefined,
+            collaborationMode: existing?.collaborationMode ?? (stored.collaborationMode as Session['collaborationMode']) ?? undefined,
             smartContinueEnabled: existing?.smartContinueEnabled ?? (stored.smartContinueEnabled != null ? stored.smartContinueEnabled : undefined)
         }
 
@@ -143,6 +145,7 @@ export class SessionCache {
         mode?: 'local' | 'remote'
         permissionMode?: PermissionMode
         modelMode?: ModelMode
+        model?: string
     }): void {
         const t = clampAliveTime(payload.time)
         if (!t) return
@@ -154,6 +157,7 @@ export class SessionCache {
         const wasThinking = session.thinking
         const previousPermissionMode = session.permissionMode
         const previousModelMode = session.modelMode
+        const previousModel = session.model
 
         session.active = true
         session.activeAt = Math.max(session.activeAt, t)
@@ -165,10 +169,13 @@ export class SessionCache {
         if (payload.modelMode !== undefined) {
             session.modelMode = payload.modelMode
         }
+        if (payload.model !== undefined) {
+            session.model = payload.model
+        }
 
         const now = Date.now()
         const lastBroadcastAt = this.lastBroadcastAtBySessionId.get(session.id) ?? 0
-        const modeChanged = previousPermissionMode !== session.permissionMode || previousModelMode !== session.modelMode
+        const modeChanged = previousPermissionMode !== session.permissionMode || previousModelMode !== session.modelMode || previousModel !== session.model
         const shouldBroadcast = (!wasActive && session.active)
             || (wasThinking !== session.thinking)
             || modeChanged
@@ -183,9 +190,14 @@ export class SessionCache {
                     activeAt: session.activeAt,
                     thinking: session.thinking,
                     permissionMode: session.permissionMode,
-                    modelMode: session.modelMode
+                    modelMode: session.modelMode,
+                    model: session.model
                 }
             })
+        }
+
+        if (previousModel !== session.model && session.model !== undefined) {
+            this.store.sessions.updateSessionModes(session.id, undefined, undefined, undefined, undefined, session.model)
         }
     }
 
