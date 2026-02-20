@@ -7,6 +7,7 @@
 
 import { startHappyServer, type HappyServerOptions } from '@/claude/utils/startHappyServer';
 import { getHappyCliCommand } from '@/utils/spawnHappyCLI';
+import { projectPath } from '@/projectPath';
 import type { ApiSessionClient } from '@/api/apiSession';
 
 /**
@@ -15,6 +16,7 @@ import type { ApiSessionClient } from '@/api/apiSession';
 export interface McpServerEntry {
     command: string;
     args: string[];
+    cwd?: string;
 }
 
 /**
@@ -57,7 +59,8 @@ export async function buildHapiMcpBridge(
         mcpServers: {
             hapi: {
                 command: bridgeCommand.command,
-                args: bridgeCommand.args
+                args: bridgeCommand.args,
+                cwd: projectPath()
             }
         }
     };
