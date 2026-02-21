@@ -616,9 +616,10 @@ export class SyncEngine {
         }
 
         // Restore model from previous session (pass to CLI via --model flag)
+        // Prefer modelMode, fall back to the actual model name (e.g. for Codex sessions)
         const resumeModel = session.modelMode && session.modelMode !== 'default'
             ? session.modelMode
-            : undefined
+            : session.model || undefined
 
         const spawnResult = await this.rpcGateway.spawnSession(
             targetMachine.id,

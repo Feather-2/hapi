@@ -39,6 +39,7 @@ export class AgentSessionBase<Mode> {
     protected permissionMode?: SessionPermissionMode;
     protected modelMode?: SessionModelMode;
     protected model?: string;
+    protected collaborationMode?: string;
 
     constructor(opts: AgentSessionBaseOptions<Mode>) {
         this.path = opts.path;
@@ -104,14 +105,15 @@ export class AgentSessionBase<Mode> {
         }
     };
 
-    protected getKeepAliveRuntime(): { permissionMode?: SessionPermissionMode; modelMode?: SessionModelMode; model?: string } | undefined {
-        if (this.permissionMode === undefined && this.modelMode === undefined && this.model === undefined) {
+    protected getKeepAliveRuntime(): { permissionMode?: SessionPermissionMode; modelMode?: SessionModelMode; model?: string; collaborationMode?: string } | undefined {
+        if (this.permissionMode === undefined && this.modelMode === undefined && this.model === undefined && this.collaborationMode === undefined) {
             return undefined;
         }
         return {
             permissionMode: this.permissionMode,
             modelMode: this.modelMode,
-            model: this.model
+            model: this.model,
+            collaborationMode: this.collaborationMode
         };
     }
 

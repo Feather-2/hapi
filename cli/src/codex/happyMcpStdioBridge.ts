@@ -93,6 +93,59 @@ export async function runHappyMcpStdioBridge(argv: string[]): Promise<void> {
       }
     );
 
+    // Register switch_mode tool and forward to HTTP MCP
+    const switchModeInputSchema: z.ZodTypeAny = z.object({
+      mode: z.enum(['code', 'plan', 'review']).describe('The collaboration mode to switch to'),
+      reason: z.string().optional().describe('Why the mode switch is needed'),
+    });
+
+    server.registerTool<any, any>(
+      'switch_mode',
+      {
+        description: 'Switch the collaboration mode of the current session',
+        title: 'Switch Collaboration Mode',
+        inputSchema: switchModeInputSchema,
+      },
+      async (args: Record<string, unknown>) => {
+        try {
+          const client = await ensureHttpClient();
+          const response = await client.callTool({ name: 'switch_mode', arguments: args });
+          return response as any;
+        } catch (error) {
+          return {
+            content: [
+              { type: 'text' as const, text: `Failed to switch mode: ${error instanceof Error ? error.message : String(error)}` },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // Register get_current_mode tool and forward to HTTP MCP
+    server.registerTool<any, any>(
+      'get_current_mode',
+      {
+        description: 'Get the current collaboration mode of this session',
+        title: 'Get Current Collaboration Mode',
+        inputSchema: z.object({}) as z.ZodTypeAny,
+      },
+      async () => {
+        try {
+          const client = await ensureHttpClient();
+          const response = await client.callTool({ name: 'get_current_mode', arguments: {} });
+          return response as any;
+        } catch (error) {
+          return {
+            content: [
+              { type: 'text' as const, text: `Failed to get current mode: ${error instanceof Error ? error.message : String(error)}` },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
     // Start STDIO transport
     const stdio = new StdioServerTransport();
     await server.connect(stdio);

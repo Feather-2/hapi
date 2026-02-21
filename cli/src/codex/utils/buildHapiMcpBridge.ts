@@ -46,9 +46,9 @@ export interface HapiMcpBridge {
  */
 export async function buildHapiMcpBridge(
     client: ApiSessionClient,
-    opts?: { onSwitchMode?: HappyServerOptions['onSwitchMode'] }
+    opts?: { onSwitchMode?: HappyServerOptions['onSwitchMode']; getCurrentMode?: HappyServerOptions['getCurrentMode'] }
 ): Promise<HapiMcpBridge> {
-    const happyServer = await startHappyServer({ client, onSwitchMode: opts?.onSwitchMode });
+    const happyServer = await startHappyServer({ client, onSwitchMode: opts?.onSwitchMode, getCurrentMode: opts?.getCurrentMode });
     const bridgeCommand = getHappyCliCommand(['mcp', '--url', happyServer.url]);
 
     return {

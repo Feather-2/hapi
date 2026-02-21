@@ -21,10 +21,13 @@ export const TITLE_INSTRUCTION = trimIdent(`
  * Allows AI to semantically drive collaboration mode transitions.
  */
 export const MODE_SWITCH_INSTRUCTION = trimIdent(`
-    You have access to functions.hapi__switch_mode to switch collaboration modes.
-    When you finish planning and are ready to implement, call functions.hapi__switch_mode with mode "code".
-    When you need to review code, call it with mode "review".
-    When you need to create a plan first, call it with mode "plan".
+    The default collaboration mode is "code". You can check the current mode at any time by calling functions.hapi__get_current_mode.
+    You have access to functions.hapi__switch_mode to switch collaboration modes (code, plan, review).
+    When the user asks you to switch to a specific mode, call functions.hapi__switch_mode immediately without additional conditions.
+    You may also switch modes proactively based on workflow context:
+    - When you finish planning and are ready to implement, switch to "code".
+    - When you need to review code, switch to "review".
+    - When you need to create a plan first, switch to "plan".
 `);
 
 /**

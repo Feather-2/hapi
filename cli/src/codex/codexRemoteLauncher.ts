@@ -458,7 +458,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
 
         const { server: happyServer, mcpServers } = await buildHapiMcpBridge(
             session.client,
-            { onSwitchMode: session.onSwitchMode }
+            { onSwitchMode: session.onSwitchMode, getCurrentMode: () => session.collaborationMode || 'code' }
         );
         this.happyServer = happyServer;
 

@@ -71,7 +71,10 @@ export async function runCodex(opts: {
         if (currentModel) {
             sessionInstance.setModel(currentModel);
         }
-        logger.debug(`[Codex] Synced session permission mode for keepalive: ${currentPermissionMode}`);
+        if (currentCollaborationMode) {
+            sessionInstance.setCollaborationMode(currentCollaborationMode);
+        }
+        logger.debug(`[Codex] Synced session modes for keepalive: permission=${currentPermissionMode}, collaboration=${currentCollaborationMode}`);
     };
 
     session.onUserMessage((message) => {

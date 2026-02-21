@@ -16,6 +16,7 @@ type SessionAlivePayload = {
     permissionMode?: PermissionMode
     modelMode?: ModelMode
     model?: string
+    collaborationMode?: string
 }
 
 type SessionEndPayload = {

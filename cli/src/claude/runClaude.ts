@@ -323,7 +323,9 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
             startingMode,
             messageQueue,
             api,
-            allowedTools: happyServer.toolNames.map(toolName => `mcp__hapi__${toolName}`),
+            allowedTools: happyServer.toolNames
+                .filter(toolName => toolName !== 'switch_mode' && toolName !== 'get_current_mode')
+                .map(toolName => `mcp__hapi__${toolName}`),
             onModeChange: createModeChangeHandler(session),
             onSessionReady: (sessionInstance) => {
                 currentSessionRef.current = sessionInstance;

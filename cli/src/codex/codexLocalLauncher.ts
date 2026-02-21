@@ -13,7 +13,7 @@ export async function codexLocalLauncher(session: CodexSession): Promise<'switch
     // Start hapi hub for MCP bridge (same as remote mode)
     const { server: happyServer, mcpServers } = await buildHapiMcpBridge(
         session.client,
-        { onSwitchMode: session.onSwitchMode }
+        { onSwitchMode: session.onSwitchMode, getCurrentMode: () => session.collaborationMode || 'code' }
     );
     logger.debug(`[codex-local]: Started hapi MCP bridge server at ${happyServer.url}`);
 

@@ -65,6 +65,12 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
         this.model = model;
     };
 
+    declare collaborationMode?: string;
+
+    setCollaborationMode = (mode: string): void => {
+        this.collaborationMode = mode;
+    };
+
     smartContinueEnabled?: boolean;
 
     setSmartContinueEnabled = (enabled: boolean): void => {

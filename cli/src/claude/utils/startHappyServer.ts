@@ -16,13 +16,14 @@ import { randomUUID } from "node:crypto";
 export interface HappyServerOptions {
     client: ApiSessionClient;
     onSwitchMode?: (mode: string) => { success: boolean; error?: string };
+    getCurrentMode?: () => string;
 }
 
 export async function startHappyServer(clientOrOpts: ApiSessionClient | HappyServerOptions) {
     const opts: HappyServerOptions = 'client' in clientOrOpts
         ? clientOrOpts as HappyServerOptions
         : { client: clientOrOpts as ApiSessionClient };
-    const { client, onSwitchMode } = opts;
+    const { client, onSwitchMode, getCurrentMode } = opts;
 
     // Handler that sends title updates via the client
     const handler = async (title: string) => {
@@ -115,6 +116,19 @@ export async function startHappyServer(clientOrOpts: ApiSessionClient | HappySer
         };
     });
 
+    // get_current_mode tool: allows AI to query the current collaboration mode
+    mcp.registerTool<any, any>('get_current_mode', {
+        description: 'Get the current collaboration mode of this session. Returns one of: code, plan, review.',
+        title: 'Get Current Collaboration Mode',
+        inputSchema: z.object({}) as z.ZodTypeAny,
+    }, async () => {
+        const mode = getCurrentMode ? getCurrentMode() : 'code';
+        return {
+            content: [{ type: 'text' as const, text: `Current collaboration mode: ${mode}` }],
+            isError: false,
+        };
+    });
+
     const transport = new StreamableHTTPServerTransport({
         // NOTE: Returning session id here will result in claude
         // sdk spawn to fail with `Invalid Request: Server already initialized`
@@ -146,7 +160,7 @@ export async function startHappyServer(clientOrOpts: ApiSessionClient | HappySer
 
     return {
         url: baseUrl.toString(),
-        toolNames: ['change_title', 'switch_mode'],
+        toolNames: ['change_title', 'switch_mode', 'get_current_mode'],
         stop: () => {
             logger.debug('[hapiMCP] Stopping server');
             mcp.close();

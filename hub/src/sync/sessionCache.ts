@@ -146,6 +146,7 @@ export class SessionCache {
         permissionMode?: PermissionMode
         modelMode?: ModelMode
         model?: string
+        collaborationMode?: string
     }): void {
         const t = clampAliveTime(payload.time)
         if (!t) return
@@ -158,6 +159,7 @@ export class SessionCache {
         const previousPermissionMode = session.permissionMode
         const previousModelMode = session.modelMode
         const previousModel = session.model
+        const previousCollaborationMode = session.collaborationMode
 
         session.active = true
         session.activeAt = Math.max(session.activeAt, t)
@@ -172,10 +174,13 @@ export class SessionCache {
         if (payload.model !== undefined) {
             session.model = payload.model
         }
+        if (payload.collaborationMode !== undefined) {
+            session.collaborationMode = payload.collaborationMode as Session['collaborationMode']
+        }
 
         const now = Date.now()
         const lastBroadcastAt = this.lastBroadcastAtBySessionId.get(session.id) ?? 0
-        const modeChanged = previousPermissionMode !== session.permissionMode || previousModelMode !== session.modelMode || previousModel !== session.model
+        const modeChanged = previousPermissionMode !== session.permissionMode || previousModelMode !== session.modelMode || previousModel !== session.model || previousCollaborationMode !== session.collaborationMode
         const shouldBroadcast = (!wasActive && session.active)
             || (wasThinking !== session.thinking)
             || modeChanged
@@ -191,13 +196,17 @@ export class SessionCache {
                     thinking: session.thinking,
                     permissionMode: session.permissionMode,
                     modelMode: session.modelMode,
-                    model: session.model
+                    model: session.model,
+                    collaborationMode: session.collaborationMode
                 }
             })
         }
 
         if (previousModel !== session.model && session.model !== undefined) {
             this.store.sessions.updateSessionModes(session.id, undefined, undefined, undefined, undefined, session.model)
+        }
+        if (previousCollaborationMode !== session.collaborationMode && session.collaborationMode !== undefined) {
+            this.store.sessions.updateSessionModes(session.id, undefined, undefined, undefined, session.collaborationMode)
         }
     }
 
