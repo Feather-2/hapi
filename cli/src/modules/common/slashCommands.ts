@@ -6,7 +6,7 @@ import { parse as parseYaml } from 'yaml';
 export interface SlashCommand {
     name: string;
     description?: string;
-    source: 'builtin' | 'user' | 'plugin';
+    source: 'builtin' | 'user' | 'plugin' | 'project';
     content?: string;  // Expanded content for Codex user prompts
     pluginName?: string;  // Name of the plugin that provides this command
 }
@@ -100,59 +100,88 @@ function getUserCommandsDir(agent: string): string | null {
 }
 
 /**
+ * Get the project commands directory for an agent type.
+ * Returns null if the agent doesn't support project commands.
+ */
+function getProjectCommandsDir(agent: string, projectDir: string): string | null {
+    switch (agent) {
+        case 'claude':
+            return join(projectDir, '.claude', 'commands');
+        case 'codex':
+            return join(projectDir, '.codex', 'prompts');
+        default:
+            // Gemini and other agents don't have project commands
+            return null;
+    }
+}
+
+/**
  * Scan a directory for commands (*.md files).
  * Returns commands with parsed frontmatter.
  */
 async function scanCommandsDir(
     dir: string,
-    source: 'user' | 'plugin',
+    source: 'user' | 'plugin' | 'project',
     pluginName?: string
 ): Promise<SlashCommand[]> {
-    try {
-        const entries = await readdir(dir, { withFileTypes: true });
-        const mdFiles = entries.filter(e => e.isFile() && e.name.endsWith('.md'));
+    async function scanRecursive(currentDir: string, segments: string[]): Promise<SlashCommand[]> {
+        const entries = await readdir(currentDir, { withFileTypes: true }).catch(() => null);
+        if (!entries) {
+            return [];
+        }
 
-        // Read all files in parallel
-        const commands = await Promise.all(
-            mdFiles.map(async (entry): Promise<SlashCommand | null> => {
+        const commandsByEntry = await Promise.all(
+            entries.map(async (entry): Promise<SlashCommand[]> => {
+                if (entry.name.startsWith('.') || entry.isSymbolicLink()) {
+                    return [];
+                }
+
+                if (entry.isDirectory()) {
+                    if (entry.name.includes(':')) return [];
+                    return scanRecursive(join(currentDir, entry.name), [...segments, entry.name]);
+                }
+
+                if (!entry.isFile() || !entry.name.endsWith('.md')) {
+                    return [];
+                }
+
                 const baseName = entry.name.slice(0, -3);
-                if (!baseName) return null;
+                if (!baseName || baseName.includes(':')) {
+                    return [];
+                }
 
-                // For plugin commands, prefix with plugin name (e.g., "superpowers:brainstorm")
-                const name = pluginName ? `${pluginName}:${baseName}` : baseName;
+                const localName = [...segments, baseName].join(':');
+                const name = pluginName ? `${pluginName}:${localName}` : localName;
+                const fallbackDescription = source === 'plugin' ? `${pluginName ?? 'plugin'} command` : 'Custom command';
 
                 try {
-                    const filePath = join(dir, entry.name);
+                    const filePath = join(currentDir, entry.name);
                     const fileContent = await readFile(filePath, 'utf-8');
                     const parsed = parseFrontmatter(fileContent);
 
-                    return {
+                    return [{
                         name,
-                        description: parsed.description ?? (source === 'plugin' ? `${pluginName} command` : 'Custom command'),
+                        description: parsed.description ?? fallbackDescription,
                         source,
                         content: parsed.content,
                         pluginName,
-                    };
+                    }];
                 } catch {
-                    // Failed to read file, return basic command
-                    return {
+                    return [{
                         name,
-                        description: source === 'plugin' ? `${pluginName} command` : 'Custom command',
+                        description: fallbackDescription,
                         source,
                         pluginName,
-                    };
+                    }];
                 }
             })
         );
 
-        // Filter nulls and sort alphabetically
-        return commands
-            .filter((cmd): cmd is SlashCommand => cmd !== null)
-            .sort((a, b) => a.name.localeCompare(b.name));
-    } catch {
-        // Directory doesn't exist or not accessible - return empty array
-        return [];
+        return commandsByEntry.flat();
     }
+
+    const commands = await scanRecursive(dir, []);
+    return commands.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -164,6 +193,22 @@ async function scanUserCommands(agent: string): Promise<SlashCommand[]> {
         return [];
     }
     return scanCommandsDir(dir, 'user');
+}
+
+/**
+ * Scan project-defined commands from <projectDir>/.claude/commands/ or equivalent.
+ */
+async function scanProjectCommands(agent: string, projectDir?: string): Promise<SlashCommand[]> {
+    if (!projectDir) {
+        return [];
+    }
+
+    const dir = getProjectCommandsDir(agent, projectDir);
+    if (!dir) {
+        return [];
+    }
+
+    return scanCommandsDir(dir, 'project');
 }
 
 /**
@@ -221,17 +266,31 @@ async function scanPluginCommands(agent: string): Promise<SlashCommand[]> {
 
 /**
  * List all available slash commands for an agent type.
- * Returns built-in commands, user-defined commands, and plugin commands.
+ * Returns built-in commands, user-defined commands, plugin commands, and project commands.
+ *
+ * Merge order follows locality precedence for custom commands:
+ * built-in -> global user -> plugin -> project (project overrides same-name globals).
  */
-export async function listSlashCommands(agent: string): Promise<SlashCommand[]> {
+export async function listSlashCommands(agent: string, projectDir?: string): Promise<SlashCommand[]> {
     const builtin = BUILTIN_COMMANDS[agent] ?? [];
 
-    // Scan user commands and plugin commands in parallel
-    const [user, plugin] = await Promise.all([
+    // Scan all command sources in parallel
+    const [user, plugin, project] = await Promise.all([
         scanUserCommands(agent),
         scanPluginCommands(agent),
+        scanProjectCommands(agent, projectDir),
     ]);
 
-    // Combine: built-in first, then user commands, then plugin commands
-    return [...builtin, ...user, ...plugin];
+    const allCommands = [...builtin, ...user, ...plugin, ...project];
+
+    // Keep insertion order while allowing latter commands to override prior ones.
+    const commandMap = new Map<string, SlashCommand>();
+    for (const command of allCommands) {
+        if (commandMap.has(command.name)) {
+            commandMap.delete(command.name);
+        }
+        commandMap.set(command.name, command);
+    }
+
+    return Array.from(commandMap.values());
 }
