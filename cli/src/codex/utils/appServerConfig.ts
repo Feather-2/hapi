@@ -15,7 +15,7 @@ function resolveApprovalPolicy(mode: EnhancedMode): ApprovalPolicy {
         case 'default': return 'untrusted';
         case 'read-only': return 'never';
         case 'safe-yolo': return 'on-failure';
-        case 'yolo': return 'on-failure';
+        case 'yolo': return 'never';
         default: {
             throw new Error(`Unknown permission mode: ${mode.permissionMode}`);
         }
