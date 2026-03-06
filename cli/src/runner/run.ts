@@ -346,6 +346,9 @@ export async function startRunner(): Promise<void> {
         if (options.model && agent !== 'opencode') {
           args.push('--model', options.model);
         }
+        if (options.effort && agent === 'codex') {
+          args.push('--effort', options.effort);
+        }
         if (yolo) {
           args.push('--yolo');
         }

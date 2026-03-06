@@ -14,6 +14,7 @@ export type PermissionMode = CodexPermissionMode;
 export interface EnhancedMode {
     permissionMode: PermissionMode;
     model?: string;
+    effort?: 'low' | 'medium' | 'high' | 'xhigh';
     collaborationMode?: CollaborationMode['mode'];
 }
 

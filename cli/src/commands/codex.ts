@@ -23,6 +23,7 @@ export const codexCommand: CommandDefinition = {
                 permissionMode?: CodexPermissionMode
                 resumeSessionId?: string
                 model?: string
+                effort?: 'low' | 'medium' | 'high' | 'xhigh'
             } = {}
             const unknownArgs: string[] = []
 
@@ -49,6 +50,16 @@ export const codexCommand: CommandDefinition = {
                     }
                     options.model = model
                     unknownArgs.push('--model', model)
+                } else if (arg === '--effort') {
+                    const effort = commandArgs[++i]
+                    if (!effort) {
+                        throw new Error('Missing --effort value')
+                    }
+                    if (!['low', 'medium', 'high', 'xhigh'].includes(effort)) {
+                        throw new Error('Invalid --effort value. Must be low, medium, high, or xhigh')
+                    }
+                    options.effort = effort as 'low' | 'medium' | 'high' | 'xhigh'
+                    unknownArgs.push('--effort', effort)
                 } else {
                     unknownArgs.push(arg)
                 }

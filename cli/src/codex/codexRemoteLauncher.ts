@@ -722,7 +722,10 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                             threadId,
                             message: message.message,
                             mode: message.mode,
-                            cliOverrides: session.codexCliOverrides
+                            cliOverrides: session.codexCliOverrides,
+                            overrides: {
+                                effort: message.mode.effort
+                            }
                         });
                         turnInFlight = true;
                         allowAnonymousTerminalEvent = false;

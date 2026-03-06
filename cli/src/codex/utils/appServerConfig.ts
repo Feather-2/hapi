@@ -124,6 +124,7 @@ export function buildTurnStartParams(args: {
         approvalPolicy?: TurnStartParams['approvalPolicy'];
         sandboxPolicy?: TurnStartParams['sandboxPolicy'];
         model?: string;
+        effort?: TurnStartParams['effort'];
     };
 }): TurnStartParams {
     const params: TurnStartParams = {
@@ -156,6 +157,11 @@ export function buildTurnStartParams(args: {
             : { mode: collaborationMode };
     } else if (model) {
         params.model = model;
+    }
+
+    const effort = args.overrides?.effort;
+    if (effort) {
+        params.effort = effort;
     }
 
     return params;
