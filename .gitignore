@@ -43,3 +43,4 @@ cli/npm/main/
 HANDOFF.md
 /.checkpoints
 .ace-tool/
+/.hapi-local
