@@ -234,6 +234,9 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             const msgType = asString(msg.type);
             if (!msgType) return;
             const eventTurnId = asString(msg.turn_id ?? msg.turnId);
+            const effectiveEventTurnId = (!eventTurnId && msgType === 'task_failed' && useAppServer && turnInFlight)
+                ? this.currentTurnId
+                : eventTurnId;
             const isTerminalEvent = msgType === 'task_complete' || msgType === 'turn_aborted' || msgType === 'task_failed';
 
             if (msgType === 'thread_started') {
@@ -258,7 +261,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             if (isTerminalEvent) {
                 if (shouldIgnoreTerminalEvent({
                     useAppServer,
-                    eventTurnId,
+                    eventTurnId: effectiveEventTurnId,
                     currentTurnId: this.currentTurnId,
                     turnInFlight,
                     allowAnonymousTerminalEvent
@@ -332,6 +335,10 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             } else if (msgType === 'task_failed') {
                 const error = asString(msg.error);
                 messageBuffer.addMessage(error ? `Task failed: ${error}` : 'Task failed', 'status');
+                session.sendSessionEvent({
+                    type: 'message',
+                    message: error ? `Task failed: ${error}` : 'Task failed'
+                });
                 if (!useAppServer) {
                     sendReady();
                 }
@@ -767,7 +774,10 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                         threadId: this.currentThreadId,
                         message: message.message,
                         mode: message.mode,
-                        cliOverrides: session.codexCliOverrides
+                        cliOverrides: session.codexCliOverrides,
+                        overrides: {
+                            effort: message.mode.effort
+                        }
                     });
                     turnInFlight = true;
                     allowAnonymousTerminalEvent = false;

@@ -16,6 +16,16 @@ describe('AppServerEventConverter', () => {
         expect(events).toEqual([{ type: 'thread_started', thread_id: 'thread-2' }]);
     });
 
+    it('maps thread/status systemError to task_failed', () => {
+        const converter = new AppServerEventConverter();
+        const events = converter.handleNotification('thread/status/changed', {
+            threadId: 'thread-2',
+            status: { type: 'systemError' }
+        });
+
+        expect(events).toEqual([{ type: 'task_failed', error: 'Codex thread entered systemError state' }]);
+    });
+
     it('maps turn/started and completed statuses', () => {
         const converter = new AppServerEventConverter();
 

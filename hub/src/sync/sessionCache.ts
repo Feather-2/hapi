@@ -203,11 +203,33 @@ export class SessionCache {
             })
         }
 
-        if (previousModel !== session.model && session.model !== undefined) {
-            this.store.sessions.updateSessionModes(session.id, undefined, undefined, undefined, undefined, session.model)
-        }
-        if (previousCollaborationMode !== session.collaborationMode && session.collaborationMode !== undefined) {
-            this.store.sessions.updateSessionModes(session.id, undefined, undefined, undefined, session.collaborationMode)
+        const persistedPermissionMode = previousPermissionMode !== session.permissionMode
+            ? session.permissionMode
+            : undefined
+        const persistedModelMode = previousModelMode !== session.modelMode
+            ? session.modelMode
+            : undefined
+        const persistedModel = previousModel !== session.model
+            ? session.model
+            : undefined
+        const persistedCollaborationMode = previousCollaborationMode !== session.collaborationMode
+            ? session.collaborationMode
+            : undefined
+
+        if (
+            persistedPermissionMode !== undefined
+            || persistedModelMode !== undefined
+            || persistedModel !== undefined
+            || persistedCollaborationMode !== undefined
+        ) {
+            this.store.sessions.updateSessionModes(
+                session.id,
+                persistedPermissionMode,
+                persistedModelMode,
+                undefined,
+                persistedCollaborationMode,
+                persistedModel
+            )
         }
     }
 
@@ -401,6 +423,16 @@ export class SessionCache {
         if (oldObj.worktree && !newObj.worktree) {
             merged.worktree = oldObj.worktree
             changed = true
+        }
+
+        // Keep native agent resume ids when merge races ahead of CLI metadata sync.
+        for (const key of ['claudeSessionId', 'codexSessionId', 'geminiSessionId', 'opencodeSessionId', 'cursorSessionId'] as const) {
+            const oldValue = oldObj[key]
+            const newValue = newObj[key]
+            if (typeof oldValue === 'string' && (typeof newValue !== 'string' || newValue.length === 0)) {
+                merged[key] = oldValue
+                changed = true
+            }
         }
 
         if (typeof oldObj.path === 'string' && typeof newObj.path !== 'string') {

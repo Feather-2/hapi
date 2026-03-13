@@ -468,6 +468,7 @@ export class SyncEngine {
             const flavor = metadata.flavor === 'codex' || metadata.flavor === 'gemini' || metadata.flavor === 'opencode'
                 ? metadata.flavor
                 : 'claude' as const
+            const resumeSessionId = metadata.codexSessionId || metadata.geminiSessionId || metadata.opencodeSessionId || undefined
             const spawnResult = await this.rpcGateway.spawnSession(
                 targetMachine.id,
                 metadata.path,
@@ -476,7 +477,8 @@ export class SyncEngine {
                 undefined,
                 undefined,
                 undefined,
-                undefined
+                undefined,
+                resumeSessionId
             )
             if (spawnResult.type !== 'success') {
                 return { type: 'error', message: spawnResult.message, code: 'resume_failed' }
@@ -623,6 +625,7 @@ export class SyncEngine {
         const resumeModel = session.modelMode && session.modelMode !== 'default'
             ? session.modelMode
             : session.model || undefined
+        const resumeYolo = session.permissionMode === 'yolo' || session.permissionMode === 'bypassPermissions'
 
         const spawnResult = await this.rpcGateway.spawnSession(
             targetMachine.id,
@@ -630,6 +633,7 @@ export class SyncEngine {
             flavor,
             resumeModel,
             undefined,
+            resumeYolo,
             undefined,
             undefined,
             resumeToken

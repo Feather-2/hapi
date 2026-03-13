@@ -4,7 +4,8 @@ import type { EnhancedMode } from './loop';
 
 const harness = vi.hoisted(() => ({
     notifications: [] as Array<{ method: string; params: unknown }>,
-    registerRequestCalls: [] as string[]
+    registerRequestCalls: [] as string[],
+    failWithoutTurnId: false
 }));
 
 vi.mock('./codexAppServerClient', () => {
@@ -37,6 +38,13 @@ vi.mock('./codexAppServerClient', () => {
             const started = { turn: {} };
             harness.notifications.push({ method: 'turn/started', params: started });
             this.notificationHandler?.('turn/started', started);
+
+            if (harness.failWithoutTurnId) {
+                const failed = { message: 'boom' };
+                harness.notifications.push({ method: 'error', params: failed });
+                this.notificationHandler?.('error', failed);
+                return { turn: {} };
+            }
 
             const completed = { status: 'Completed', turn: {} };
             harness.notifications.push({ method: 'turn/completed', params: completed });
@@ -153,6 +161,7 @@ describe('codexRemoteLauncher', () => {
     afterEach(() => {
         harness.notifications = [];
         harness.registerRequestCalls = [];
+        harness.failWithoutTurnId = false;
         delete process.env.CODEX_USE_MCP_SERVER;
     });
 
@@ -171,6 +180,23 @@ describe('codexRemoteLauncher', () => {
         expect(foundSessionIds).toContain('thread-anonymous');
         expect(harness.notifications.map((entry) => entry.method)).toEqual(['turn/started', 'turn/completed']);
         expect(sessionEvents.filter((event) => event.type === 'ready').length).toBeGreaterThanOrEqual(1);
+        expect(thinkingChanges).toContain(true);
+        expect(session.thinking).toBe(false);
+    });
+
+    it('surfaces app-server failures even when the failure event omits turn_id', async () => {
+        delete process.env.CODEX_USE_MCP_SERVER;
+        harness.failWithoutTurnId = true;
+        const {
+            session,
+            sessionEvents,
+            thinkingChanges
+        } = createSessionStub();
+
+        const exitReason = await codexRemoteLauncher(session as never);
+
+        expect(exitReason).toBe('exit');
+        expect(sessionEvents).toContainEqual({ type: 'message', message: 'Task failed: boom' });
         expect(thinkingChanges).toContain(true);
         expect(session.thinking).toBe(false);
     });

@@ -10,6 +10,7 @@ import { authAndSetupMachineIfNeeded } from '@/ui/auth';
 import packageJson from '../../package.json';
 import { getEnvironmentInfo } from '@/ui/doctor';
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI';
+import { configuration } from '@/configuration';
 import { writeRunnerState, RunnerLocallyPersistedState, readRunnerState, acquireRunnerLock, releaseRunnerLock } from '@/persistence';
 import { isProcessAlive, isWindows, killProcess, killProcessByChildProcess } from '@/utils/process';
 import { withRetry } from '@/utils/time';
@@ -20,6 +21,53 @@ import { startRunnerControlServer } from './controlServer';
 import { createWorktree, removeWorktree, type WorktreeInfo } from './worktree';
 import { join } from 'path';
 import { buildMachineMetadata } from '@/agent/sessionFactory';
+
+async function copyFileIfExists(source: string, destination: string): Promise<void> {
+  try {
+    await fs.copyFile(source, destination);
+  } catch (error: any) {
+    if (error?.code !== 'ENOENT') {
+      logger.debug(`[RUNNER RUN] Failed to copy ${source} -> ${destination}: ${error?.message || error}`);
+    }
+  }
+}
+
+async function prepareAgentHomeEnv(agent: SpawnSessionOptions['agent'], token?: string): Promise<Record<string, string>> {
+  const resolvedAgent = agent ?? 'claude';
+  const agentHomesRoot = join(configuration.happyHomeDir, 'agent-homes');
+  await fs.mkdir(agentHomesRoot, { recursive: true });
+
+  if (resolvedAgent === 'claude') {
+    const claudeConfigDir = join(agentHomesRoot, 'claude');
+    await fs.mkdir(claudeConfigDir, { recursive: true });
+    await fs.mkdir(join(claudeConfigDir, 'session-env'), { recursive: true });
+    await copyFileIfExists(join(os.homedir(), '.claude', 'settings.json'), join(claudeConfigDir, 'settings.json'));
+    await copyFileIfExists(join(os.homedir(), '.claude', 'settings.local.json'), join(claudeConfigDir, 'settings.local.json'));
+
+    return {
+      CLAUDE_CONFIG_DIR: claudeConfigDir,
+      ...(token ? { CLAUDE_CODE_OAUTH_TOKEN: token } : {})
+    };
+  }
+
+  if (resolvedAgent === 'codex') {
+    const codexHomeDir = join(agentHomesRoot, 'codex');
+    await fs.mkdir(codexHomeDir, { recursive: true });
+    await fs.mkdir(join(codexHomeDir, 'tmp'), { recursive: true });
+
+    if (token) {
+      await fs.writeFile(join(codexHomeDir, 'auth.json'), token);
+    } else {
+      await copyFileIfExists(join(os.homedir(), '.codex', 'auth.json'), join(codexHomeDir, 'auth.json'));
+    }
+
+    return {
+      CODEX_HOME: codexHomeDir
+    };
+  }
+
+  return {};
+}
 
 export async function startRunner(): Promise<void> {
   // We don't have cleanup function at the time of server construction
@@ -290,26 +338,7 @@ export async function startRunner(): Promise<void> {
       try {
 
         // Resolve authentication token if provided
-        let extraEnv: Record<string, string> = {};
-        if (options.token) {
-          if (options.agent === 'codex') {
-
-            // Create a temporary directory for Codex
-            const codexHomeDir = await fs.mkdtemp(join(os.tmpdir(), 'hapi-codex-'));
-
-            // Write the token to the temporary directory
-            await fs.writeFile(join(codexHomeDir, 'auth.json'), options.token);
-
-            // Set the environment variable for Codex
-            extraEnv = {
-              CODEX_HOME: codexHomeDir
-            };
-          } else if (options.agent === 'claude' || !options.agent) {
-            extraEnv = {
-              CLAUDE_CODE_OAUTH_TOKEN: options.token
-            };
-          }
-        }
+        let extraEnv: Record<string, string> = await prepareAgentHomeEnv(options.agent, options.token);
 
         if (worktreeInfo) {
           extraEnv = {

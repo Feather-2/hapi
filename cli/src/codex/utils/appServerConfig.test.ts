@@ -33,7 +33,7 @@ describe('appServerConfig', () => {
         });
 
         expect(params.sandbox).toBe('danger-full-access');
-        expect(params.approvalPolicy).toBe('on-failure');
+        expect(params.approvalPolicy).toBe('never');
     });
 
     it('concatenates custom developer instructions after base instructions', () => {
@@ -113,5 +113,15 @@ describe('appServerConfig', () => {
 
         expect(params.approvalPolicy).toBe('on-request');
         expect(params.model).toBe('gpt-5');
+    });
+
+    it('maps xhigh effort to high for app-server compatibility', () => {
+        const params = buildTurnStartParams({
+            threadId: 'thread-1',
+            message: 'hello',
+            overrides: { effort: 'xhigh' }
+        });
+
+        expect(params.effort).toBe('high');
     });
 });

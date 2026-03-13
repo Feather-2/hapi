@@ -59,6 +59,15 @@ function resolveSandboxPolicyOverride(value: CodexCliOverrides['sandbox'] | unde
     }
 }
 
+function resolveReasoningEffort(
+    value: EnhancedMode['effort'] | TurnStartParams['effort'] | undefined
+): TurnStartParams['effort'] | undefined {
+    if (value === 'xhigh') {
+        return 'high';
+    }
+    return value;
+}
+
 function buildMcpServerConfig(mcpServers: McpServersConfig): Record<string, unknown> {
     const config: Record<string, unknown> = {};
 
@@ -124,7 +133,7 @@ export function buildTurnStartParams(args: {
         approvalPolicy?: TurnStartParams['approvalPolicy'];
         sandboxPolicy?: TurnStartParams['sandboxPolicy'];
         model?: string;
-        effort?: TurnStartParams['effort'];
+        effort?: EnhancedMode['effort'] | TurnStartParams['effort'];
     };
 }): TurnStartParams {
     const params: TurnStartParams = {
@@ -159,7 +168,7 @@ export function buildTurnStartParams(args: {
         params.model = model;
     }
 
-    const effort = args.overrides?.effort;
+    const effort = resolveReasoningEffort(args.overrides?.effort);
     if (effort) {
         params.effort = effort;
     }

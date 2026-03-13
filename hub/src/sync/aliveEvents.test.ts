@@ -38,6 +38,33 @@ describe('alive incremental events', () => {
         expect(update.data).toEqual(expect.objectContaining({ active: true }))
     })
 
+    it('persists permission and model modes from session alive payloads', () => {
+        const store = new Store(':memory:')
+        const events: SyncEvent[] = []
+        const cache = new SessionCache(store, createPublisher(events))
+
+        const session = cache.getOrCreateSession(
+            'session-mode-persist-test',
+            { path: '/tmp/project', host: 'localhost', flavor: 'codex' },
+            { requests: {}, completedRequests: {} },
+            'default'
+        )
+
+        cache.handleSessionAlive({
+            sid: session.id,
+            time: Date.now(),
+            thinking: false,
+            permissionMode: 'yolo',
+            modelMode: 'default',
+            model: 'gpt-5.4'
+        })
+
+        const stored = store.sessions.getSessionByNamespace(session.id, 'default')
+        expect(stored?.permissionMode).toBe('yolo')
+        expect(stored?.modelMode).toBe('default')
+        expect(stored?.model).toBe('gpt-5.4')
+    })
+
     it('emits full active machine object on machine alive', () => {
         const store = new Store(':memory:')
         const events: SyncEvent[] = []

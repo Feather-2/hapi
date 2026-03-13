@@ -1,5 +1,5 @@
 import { dirname, isAbsolute, join } from 'node:path';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const DEFAULT_TARGETS = [
@@ -204,6 +204,34 @@ function ensureEmbeddedAssetsManifest(workspaceRoot: string, includeWebAssets: b
     writeStubEmbeddedAssets(workspaceRoot);
 }
 
+function resolveCompileBunExecutable(): string {
+    const realExecPath = realpathSync(process.execPath);
+    const execDir = dirname(realExecPath);
+    const bunPackageRoot = join(execDir, '..');
+    const ovenRoot = join(bunPackageRoot, 'node_modules', '@oven');
+    const executableName = process.platform === 'win32' ? 'bun.exe' : 'bun';
+    const hostTarget = resolveDefaultTarget();
+    const hostPackageName = hostTarget.replace(/^bun-/, 'bun-');
+    const linuxX64Fallbacks = [
+        'bun-linux-x64-baseline',
+        'bun-linux-x64',
+        'bun-linux-x64-musl-baseline',
+        'bun-linux-x64-musl'
+    ];
+    const packageCandidates = hostTarget === 'bun-linux-x64-baseline'
+        ? [hostPackageName, ...linuxX64Fallbacks.filter((name) => name !== hostPackageName)]
+        : [hostPackageName];
+
+    for (const packageName of packageCandidates) {
+        const candidate = join(ovenRoot, packageName, 'bin', executableName);
+        if (existsSync(candidate)) {
+            return candidate;
+        }
+    }
+
+    return process.execPath;
+}
+
 async function buildTarget(projectRoot: string, target: string, outdir: string, name: string): Promise<void> {
     const { platform, arch } = parseTarget(target);
     assertArchivesExist(projectRoot, platform, arch);
@@ -213,7 +241,7 @@ async function buildTarget(projectRoot: string, target: string, outdir: string, 
     const featureFlag = getFeatureFlag(platform, arch);
 
     const cmd = [
-        process.execPath,
+        resolveCompileBunExecutable(),
         'build',
         '--compile',
         '--no-compile-autoload-dotenv',
