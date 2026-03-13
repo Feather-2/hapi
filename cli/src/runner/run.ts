@@ -51,19 +51,9 @@ async function prepareAgentHomeEnv(agent: SpawnSessionOptions['agent'], token?: 
   }
 
   if (resolvedAgent === 'codex') {
-    const codexHomeDir = join(agentHomesRoot, 'codex');
-    await fs.mkdir(codexHomeDir, { recursive: true });
-    await fs.mkdir(join(codexHomeDir, 'tmp'), { recursive: true });
-
-    if (token) {
-      await fs.writeFile(join(codexHomeDir, 'auth.json'), token);
-    } else {
-      await copyFileIfExists(join(os.homedir(), '.codex', 'auth.json'), join(codexHomeDir, 'auth.json'));
-    }
-
-    return {
-      CODEX_HOME: codexHomeDir
-    };
+    // Use real ~/.codex directly instead of isolated environment
+    // to avoid state sync issues
+    return {};
   }
 
   return {};
